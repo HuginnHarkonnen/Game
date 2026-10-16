@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<title>Dungeon Dice 🎲 Roguelike</title>
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+        font-family: 'Comic Sans MS', 'Segoe UI', sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        user-select: none;
+        padding: 20px;
+    }
+    .game {
+        background: linear-gradient(180deg, #2d1b4e 0%, #1a0f2e 100%);
+        border: 4px solid #ffeb3b;
+        border-radius: 25px;
+        padding: 25px;
+        width: 480px;
+        box-shadow: 0 0 40px rgba(255,235,59,0.3), inset 0 0 20px rgba(0,0,0,0.5);
+    }
+    .top-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        font-size: 1.1em;
+        font-weight: bold;
+    }
+    .hp-bar {
+        background: #000;
+        border: 2px solid #fff;
+        border-radius: 10px;
+        height: 22px;
+        overflow: hidden;
+        position: relative;
+        flex: 1;
+        margin: 0 8px;
+    }
+    .hp-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #4caf50, #8bc34a);
+        transition: width 0.4s;
+    }
+    .hp-fill.enemy { background: linear-gradient(90deg, #f44336, #ff5722); }
+    .hp-text {
+        position: absolute;
+        width: 100%;
+        text-align: center;
+        font-size: 0.85em;
+        line-height: 22px;
+        text-shadow: 1px 1px 2px #000;
+    }
+    .gold {
+        background: linear-gradient(135deg, #ffd700, #ffa500);
+        color: #5d2e00;
+        padding: 4px 12px;
+        border-radius: 15px;
+        border: 2px solid #fff;
+        font-weight: bold;
+    }
+    .enemy-zone {
+        background: radial-gradient(circle, #3d2060 0%, #1a0f2e 100%);
+        border: 3px dashed #9c27b0;
+        border-radius: 20px;
+        padding: 20px;
+        text-align: center;
+        margin-bottom: 15px;
+        position: relative;
+    }
+    .enemy-emoji {
+        font-size: 5em;
+        display: inline-block;
+        transition: transform 0.3s;
+    }
+    .enemy-emoji.shake { animation: shake 0.4s; }
+    .enemy-emoji.dead { animation: die 0.8s forwards; }
+    @keyframes shake {
+        0%,100% { transform: translateX(0) rotate(0); }
+        25% { transform: translateX(-10px) rotate(-5deg); }
+        75% { transform: translateX(10px) rotate(5deg); }
+    }
+    @keyframes die {
+        to { transform: scale(0) rotate(720deg); opacity: 0; }
+    }
+    .dice-zone {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        margin: 15px 0;
+        min-height: 80px;
+        flex-wrap: wrap;
+    }
+    .die {
+        width: 65px;
+        height: 65px;
+        border-radius: 15px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        cursor: pointer;
+        border: 3px solid #fff;
+        box-shadow: 0 5px 0 rgba(0,0,0,0.4);
+        transition: all 0.2s;
+        position: relative;
+    }
+    .die:hover:not(.used) { transform: translateY(-8px) scale(1.05); }
+    .die.selected {
+        transform: translateY(-12px) scale(1.1);
+        box-shadow: 0 0 25px #ffeb3b, 0 5px 0 rgba(0,0,0,0.4);
+    }
+    .die.used { opacity: 0.3; cursor: not-allowed; transform: scale(0.8); }
+    .die.d6 { background: linear-gradient(135deg, #fff, #ddd); color: #333; }
+    .die.d8 { background: linear-gradient(135deg, #4fc3f7, #0288d1); color: #fff; }
+    .die.d10 { background: linear-gradient(135deg, #ba68c8, #7b1fa2); color: #fff; }
+    .die.d12 { background: linear-gradient(135deg, #ffd54f, #ff8f00); color: #fff; }
+    .die.fire { background: linear-gradient(135deg, #ff5722, #d84315); color: #fff; }
+    .die.ice { background: linear-gradient(135deg, #e1f5fe, #4dd0e1); color: #01579b; }
+    .die.vamp { background: linear-gradient(135deg, #880e4f, #4a148c); color: #fff; }
+    .die.poison { background: linear-gradient(135deg, #aed581, #33691e); color: #fff; }
+    .die-icon { font-size: 1.2em; }
+    .die-val { font-size: 1.5em; line-height: 1; }
+    .die.rolling { animation: roll 0.6s; }
+    @keyframes roll {
+        0% { transform: rotate(0) scale(0.5); }
+        50% { transform: rotate(360deg) scale(1.2); }
+        100% { transform: rotate(720deg) scale(1); }
+    }
+    .actions {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+    .btn {
+        flex: 1;
+        padding: 10px;
+        border: 3px solid #fff;
+        border-radius: 12px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 0.95em;
+        color: #fff;
+        transition: all 0.2s;
+        box-shadow: 0 4px 0 rgba(0,0,0,0.3);
+    }
+    .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 0 rgba(0,0,0,0.3); }
+    .btn:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,0.3); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-atk { background: linear-gradient(135deg, #f44336, #c62828); }
+    .btn-def { background: linear-gradient(135deg, #2196f3, #1565c0); }
+    .btn-heal { background: linear-gradient(135deg, #4caf50, #2e7d32); }
+    .btn-roll { background: linear-gradient(135deg, #ff9800, #e65100); width: 100%; margin-bottom: 8px; }
+    .btn-end { background: linear-gradient(135deg, #9c27b0, #6a1b9a); width: 100%; }
+    .btn-shop { background: linear-gradient(135deg, #ffd700, #ff8f00); color: #5d2e00; }
+    .log {
+        background: rgba(0,0,0,0.4);
+        padding: 10px;
+        border-radius: 10px;
+        text-align: center;
+        font-size: 0.9em;
+        min-height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 10px;
+    }
+    .inventory {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+        justify-content: center;
+    }
+    .inv-slot {
+        width: 55px;
+        height: 55px;
+        background: rgba(0,0,0,0.5);
+        border: 2px dashed #ffeb3b;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8em;
+        position: relative;
+    }
+    .inv-slot.filled { border-style: solid; background: rgba(255,235,59,0.2); }
+    .inv-slot .tooltip {
+        display: none;
+        position: absolute;
+        bottom: 110%;
+        background: #000;
+        padding: 5px 10px;
+        border-radius: 8px;
+        font-size: 0.5em;
+        white-space: nowrap;
+        z-index: 10;
+    }
+    .inv-slot:hover .tooltip { display: block; }
+
+    /* Екрани нагород/магазину */
+    .screen {
+        display: none;
+        animation: fadeIn 0.3s;
+    }
+    .screen.active { display: block; }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .reward-cards, .shop-items {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        margin: 15px 0;
+        flex-wrap: wrap;
+    }
+    .card {
+        background: linear-gradient(180deg, #3d2060, #1a0f2e);
+        border: 3px solid #ffeb3b;
+        border-radius: 15px;
+        padding: 15px;
+        width: 130px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .card:hover { transform: translateY(-8px) scale(1.05); box-shadow: 0 0 20px #ffeb3b; }
+    .card .icon { font-size: 3em; margin-bottom: 5px; }
+    .card .name { font-weight: bold; font-size: 1em; margin-bottom: 5px; }
+    .card .desc { font-size: 0.75em; color: #ccc; }
+    .card .price { color: #ffd700; font-weight: bold; margin-top: 5px; }
+    .discard-zone {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        margin: 10px 0;
+        flex-wrap: wrap;
+    }
+    .discard-die {
+        width: 50px;
+        height: 50px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        border: 2px solid #fff;
+        cursor: pointer;
+        font-size: 0.9em;
+        transition: all 0.2s;
+    }
+    .discard-die:hover { transform: scale(1.1); box-shadow: 0 0 15px #f44336; }
+    .discard-die.chosen { box-shadow: 0 0 20px #f44336; border-color: #f44336; }
+    h2 { text-align: center; margin-bottom: 10px; text-shadow: 2px 2px 0 #000; }
+    .gold-bounce { animation: bounce 0.6s; }
+    @keyframes bounce {
+        0%,100% { transform: scale(1); }
+        50% { transform: scale(1.4); }
+    }
+</style>
+</head>
+<body>
+<div class="game">
+
+<!-- ЕКРАН БОЮ -->
+<div class="screen active" id="battleScreen">
+    <div class="top-bar">
+        <span>❤️</span>
+        <div class="hp-bar">
+            <div class="hp-fill" id="playerHPFill" style="width:100%"></div>
+            <div class="hp-text" id="playerHPText">30/30</div>
+        </div>
+        <span class="gold" id="goldDisplay">💰 0</span>
+    </div>
+
+    <div class="enemy-zone">
+        <div>Кімната <span id="roomNum">1</span></div>
+        <div class="enemy-emoji" id="enemyEmoji">👹</div>
+        <div class="hp-bar" style="margin-top:10px;">
+            <div class="hp-fill enemy" id="enemyHPFill" style="width:100%"></div>
+            <div class="hp-text" id="enemyHPText">20/20</div>
+        </div>
+        <div id="enemyStatus" style="font-size:0.85em; margin-top:5px;"></div>
+    </div>
+
+    <div class="dice-zone" id="diceZone"></div>
+
+    <button class="btn btn-roll" id="rollBtn" onclick="rollDice()">🎲 Кинути кубики</button>
+
+    <div class="actions">
+        <button class="btn btn-atk" onclick="assign('attack')">⚔️ Атака</button>
+        <button class="btn btn-def" onclick="assign('defend')">🛡️ Блок</button>
+        <button class="btn btn-heal" onclick="assign('heal')">💚 Лікування</button>
+    </div>
+
+    <button class="btn btn-end" id="endBtn" onclick="endTurn()" disabled>⏭️ Завершити хід</button>
+
+    <div class="inventory" id="inventory"></div>
+
+    <div class="log" id="log">Кидайте кубики та розподіляйте їх!</div>
+</div>
+
+<!-- ЕКРАН НАГОРОДИ -->
+<div class="screen" id="rewardScreen">
+    <h2>🎁 Перемога! Оберіть новий кубик</h2>
+    <p style="text-align:center; font-size:0.9em; color:#ffeb3b;" id="rewardGold"></p>
+    <p style="text-align:center; font-size:0.85em; margin:10px 0;">Оберіть кубик, який викинете зі свого набору:</p>
+    <div class="discard-zone" id="discardZone"></div>
+    <p style="text-align:center; font-size:0.85em; margin-top:15px;">Новий кубик:</p>
+    <div class="reward-cards" id="rewardCards"></div>
+    <button class="btn btn-end" id="confirmRewardBtn" onclick="confirmReward()" disabled style="width:100%; margin-top:10px;">✅ Підтвердити</button>
+</div>
+
+<!-- ЕКРАН МАГАЗИНУ -->
+<div class="screen" id="shopScreen">
+    <h2>🏪 Магазин мандрівника</h2>
+    <p style="text-align:center;" class="gold" id="shopGold">💰 0</p>
+    <div class="shop-items" id="shopItems"></div>
+    <button class="btn btn-roll" onclick="leaveShop()" style="width:100%;">🚪 Піти далі</button>
+</div>
+
+<!-- ЕКРАН КІНЦЯ ГРИ -->
+<div class="screen" id="gameOverScreen">
+    <h2 id="gameOverTitle">💀 Ви загинули</h2>
+    <p style="text-align:center; font-size:1.2em; margin:20px 0;" id="gameOverStats"></p>
+    <button class="btn btn-roll" onclick="location.reload()" style="width:100%;">🔄 Почати знову</button>
+</div>
+
+</div>
+
+<script>
+// ==================== ДАНІ ====================
+const DICE_TYPES = {
+    d6:     { icon: '🎲', name: 'D6',       max: 6,  desc: 'Класика' },
+    d8:     { icon: '🔷', name: 'D8',       max: 8,  desc: 'Більше граней' },
+    d10:    { icon: '💎', name: 'D10',      max: 10, desc: 'Різкий кубик' },
+    d12:    { icon: '⭐', name: 'D12',      max: 12, desc: 'Величезний' },
+    fire:   { icon: '🔥', name: 'Вогняний', max: 8,  desc: 'D8 + підпал (3 шкоди/хід)' },
+    ice:    { icon: '❄️', name: 'Крижаний', max: 8,  desc: 'D8 + заморожує ворога' },
+    vamp:   { icon: '🧛', name: 'Вампір',   max: 8,  desc: 'D8 + краде HP при атаці' },
+    poison: { icon: '☠️', name: 'Отрута',   max: 6,  desc: 'D6 + 5 отрути на хід' }
+};
+
+const EQUIPMENT = {
+    sword:   { icon: '🗡️', name: 'Гострий меч',    desc: '+2 до кожної атаки',     price: 25 },
+    shield:  { icon: '🛡️', name: 'Міцний щит',     desc: '+3 до блоку за замовчуванням', price: 20 },
+    amulet:  { icon: '📿', name: 'Амулет життя',   desc: '+10 макс. HP',            price: 30 },
+    ring:    { icon: '💍', name: 'Кільце удачі',   desc: '+1 до всіх кидків',       price: 40 },
+    potion:  { icon: '🧪', name: 'Зілля регенерації', desc: '+2 HP на початку ходу', price: 35 }
+};
+
+const ENEMIES = ['👹','🧟','👻','🐉','👽','🦇','🕷️','🧙','💀'];
+
+// ==================== СТАН ====================
+let state = {
+    hp: 30, maxHp: 30,
+    gold: 0,
+    room: 1,
+    block: 0,
+    dice: ['d6','d6','d6'], // типи кубиків у гравця
+    equipment: [null, null, null], // 3 слоти
+    // Бойовий стан
+    currentDice: [], // {type, value, used}
+    selected: -1,
+    turnActions: { attack: 0, defend: 0, heal: 0 },
+    enemy: { hp: 20, maxHp: 20, burn: 0, poison: 0, frozen: false },
+    // Вибір нагороди
+    rewardOffer: [],
+    discardChoice: -1
+};
+
+// ==================== UI ====================
+function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+}
+
+function updateUI() {
+    document.getElementById('playerHPFill').style.width = (state.hp/state.maxHp*100)+'%';
+    document.getElementById('playerHPText').innerText = state.hp+'/'+state.maxHp;
+    document.getElementById('enemyHPFill').style.width = (state.enemy.hp/state.enemy.maxHp*100)+'%';
+    document.getElementById('enemyHPText').innerText = state.enemy.hp+'/'+state.enemy.maxHp;
+    document.getElementById('roomNum').innerText = state.room;
+    document.getElementById('goldDisplay').innerText = '💰 '+state.gold;
+    const es = [];
+    if (state.enemy.burn > 0) es.push('🔥'+state.enemy.burn);
+    if (state.enemy.poison > 0) es.push('☠️'+state.enemy.poison);
+    if (state.enemy.frozen) es.push('❄️Замор.');
+    document.getElementById('enemyStatus').innerText = es.join(' ');
+    renderInventory();
+}
+
+function renderInventory() {
+    const inv = document.getElementById('inventory');
+    inv.innerHTML = '';
+    state.equipment.forEach((eq, i) => {
+        const slot = document.createElement('div');
+        slot.className = 'inv-slot' + (eq ? ' filled' : '');
+        if (eq) {
+            slot.innerHTML = EQUIPMENT[eq].icon + `<div class="tooltip">${EQUIPMENT[eq].name}: ${EQUIPMENT[eq].desc}</div>`;
+        } else {
+            slot.innerHTML = '·';
+        }
+        inv.appendChild(slot);
+    });
+}
+
+function renderDice() {
+    const zone = document.getElementById('diceZone');
+    zone.innerHTML = '';
+    state.currentDice.forEach((d, i) => {
+        const el = document.createElement('div');
+        el.className = 'die ' + d.type + (d.used ? ' used' : '') + (i === state.selected ? ' selected' : '');
+        el.innerHTML = `<div class="die-icon">${DICE_TYPES[d.type].icon}</div><div class="die-val">${d.value}</div>`;
+        if (!d.used) el.onclick = () => { state.selected = i; renderDice(); };
+        zone.appendChild(el);
+    });
+}
+
+function log(msg) { document.getElementById('log').innerText = msg; }
+
+function animateEnemy(cls) {
+    const e = document.getElementById('enemyEmoji');
+    e.classList.remove('shake','dead');
+    void e.offsetWidth;
+    e.classList.add(cls);
+}
+
+function animateGold() {
+    const g = document.getElementById('goldDisplay');
+    g.classList.remove('gold-bounce');
+    void g.offsetWidth;
+    g.classList.add('gold-bounce');
+}
+
+// ==================== БОЙ ====================
+function startBattle() {
+    state.enemy.maxHp = 15 + state.room * 5;
+    state.enemy.hp = state.enemy.maxHp;
+    state.enemy.burn = 0;
+    state.enemy.poison = 0;
+    state.enemy.frozen = false;
+    state.block = 0;
+    state.currentDice = [];
+    state.selected = -1;
+    state.turnActions = { attack: 0, defend: 0, heal: 0 };
+    document.getElementById('enemyEmoji').innerText = ENEMIES[(state.room-1) % ENEMIES.length];
+    document.getElementById('enemyEmoji').classList.remove('dead');
+    document.getElementById('rollBtn').disabled = false;
+    document.getElementById('endBtn').disabled = true;
+    updateUI();
+    renderDice();
+    showScreen('battleScreen');
+    log(`Кімната ${state.room}. Ворог з'являється!`);
+}
+
+function rollDice() {
+    // Зілля регенерації
+    if (state.equipment.includes('potion')) {
+        state.hp = Math.min(state.maxHp, state.hp + 2);
+    }
+    state.currentDice = state.dice.map(type => {
+        let v = Math.ceil(Math.random() * DICE_TYPES[type].max);
+        if (state.equipment.includes('ring')) v += 1;
+        return { type, value: v, used: false };
+    });
+    state.selected = -1;
+    state.turnActions = { attack: 0, defend: 0, heal: 0 };
+    renderDice();
+    // Анімація
+    document.querySelectorAll('.die').forEach(d => d.classList.add('rolling'));
+    setTimeout(() => document.querySelectorAll('.die').forEach(d => d.classList.remove('rolling')), 600);
+    document.getElementById('rollBtn').disabled = true;
+    document.getElementById('endBtn').disabled = false;
+    log('Кубики кинуто! Розподіліть їх.');
+}
+
+function assign(action) {
+    if (state.selected === -1) { log('Спочатку клікніть на кубик!'); return; }
+    const d = state.currentDice[state.selected];
+    if (d.used) return;
+    d.used = true;
+    let val = d.value;
+    // Спецефекти кубиків
+    if (d.type === 'fire' && action === 'attack') {
+        state.enemy.burn += 3;
+    }
+    if (d.type === 'ice' && action === 'defend') {
+        state.enemy.frozen = true;
+    }
+    if (d.type === 'vamp' && action === 'attack') {
+        state.hp = Math.min(state.maxHp, state.hp + Math.floor(val/2));
+    }
+    if (d.type === 'poison' && action === 'attack') {
+        state.enemy.poison += 5;
+    }
+    state.turnActions[action] += val;
+    state.selected = -1;
+    renderDice();
+    if (state.currentDice.every(x => x.used)) {
+        log('Всі кубики використані. Завершуйте хід!');
+    }
+}
+
+function endTurn() {
+    // Дії гравця
+    let atk = state.turnActions.attack;
+    if (state.equipment.includes('sword')) atk += 2;
+    state.enemy.hp -= atk;
+    let def = state.turnActions.defend;
+    if (state.equipment.includes('shield')) def += 3;
+    state.block += def;
+    state.hp = Math.min(state.maxHp, state.hp + Math.floor(state.turnActions.heal / 2));
+
+    if (atk > 0) animateEnemy('shake');
+
+    if (state.enemy.hp <= 0) {
+        animateEnemy('dead');
+        const reward = 10 + state.room * 2;
+        state.gold += reward;
+        animateGold();
+        log(`Перемога! +${reward} 💰`);
+        setTimeout(() => showReward(reward), 900);
+        return;
+    }
+
+    // Статичний урон ворогу
+    if (state.enemy.burn > 0) {
+        state.enemy.hp -= state.enemy.burn;
+        log(`Ворог горить: -${state.enemy.burn} HP`);
+    }
+    if (state.enemy.poison > 0) {
+        state.enemy.hp -= state.enemy.poison;
+        state.enemy.poison = Math.max(0, state.enemy.poison - 1);
+    }
+    if (state.enemy.hp <= 0) {
+        animateEnemy('dead');
+        const reward = 10 + state.room * 2;
+        state.gold += reward;
+        animateGold();
+        setTimeout(() => showReward(reward), 900);
+        return;
+    }
+
+    // Хід ворога
+    let enemyDmg = 0;
+    if (!state.enemy.frozen) {
+        enemyDmg = 3 + Math.floor(state.room / 2) + Math.floor(Math.random() * 4);
+    } else {
+        log('Ворог заморожений і не атакує!');
+        state.enemy.frozen = false;
+    }
+    const blocked = Math.min(state.block, enemyDmg);
+    const taken = enemyDmg - blocked;
+    state.hp -= taken;
+    state.block = 0;
+    if (taken > 0) log(`Ворог б'є на ${enemyDmg}. Блок: ${blocked}. Ви втратили ${taken} HP.`);
+
+    if (state.hp <= 0) {
+        gameOver();
+        return;
+    }
+
+    document.getElementById('rollBtn').disabled = false;
+    document.getElementById('endBtn').disabled = true;
+    updateUI();
+}
+
+// ==================== НАГОРОДА ====================
+function showReward(goldAmount) {
+    document.getElementById('rewardGold').innerText = `+${goldAmount} 💰`;
+    // Пропозиція 3 нових кубиків
+    const pool = Object.keys(DICE_TYPES).filter(k => !state.dice.includes(k) || state.dice.filter(x=>x===k).length < 2);
+    const offer = [];
+    const shuffled = pool.sort(() => Math.random() - 0.5);
+    for (let i = 0; i < 3 && i < shuffled.length; i++) offer.push(shuffled[i]);
+    state.rewardOffer = offer;
+    state.discardChoice = -1;
+
+    // Поточні кубики для викидання
+    const dz = document.getElementById('discardZone');
+    dz.innerHTML = '';
+    state.dice.forEach((type, i) => {
+        const el = document.createElement('div');
+        el.className = 'discard-die ' + type;
+        el.innerHTML = `${DICE_TYPES[type].icon}<br>${DICE_TYPES[type].name}`;
+        el.style.fontSize = '0.7em';
+        el.onclick = () => {
+            state.discardChoice = i;
+            document.querySelectorAll('.discard-die').forEach(d => d.classList.remove('chosen'));
+            el.classList.add('chosen');
+            document.getElementById('confirmRewardBtn').disabled = false;
+        };
+        dz.appendChild(el);
+    });
+
+    // Нові кубики
+    const rc = document.getElementById('rewardCards');
+    rc.innerHTML = '';
+    offer.forEach((type, i) => {
+        const c = document.createElement('div');
+        c.className = 'card';
+        c.dataset.idx = i;
+        c.innerHTML = `<div class="icon">${DICE_TYPES[type].icon}</div><div class="name">${DICE_TYPES[type].name}</div><div class="desc">${DICE_TYPES[type].desc}</div>`;
+        c.onclick = () => {
+            document.querySelectorAll('.reward-cards .card').forEach(x => x.style.borderColor = '#ffeb3b');
+            c.style.borderColor = '#4caf50';
+            state.chosenReward = type;
+        };
+        rc.appendChild(c);
+    });
+    state.chosenReward = null;
+    document.getElementById('confirmRewardBtn').disabled = true;
+    showScreen('rewardScreen');
+}
+
+function confirmReward() {
+    if (state.discardChoice === -1 || !state.chosenReward) return;
+    state.dice[state.discardChoice] = state.chosenReward;
+    state.room++;
+    // Амulet застосовується один раз при покупці, але для простоти - даємо бонус тут
+    // Магазин кожні 5 кімнат
+    if ((state.room - 1) % 5 === 0 && state.room > 1) {
+        openShop();
+    } else {
+        startBattle();
+    }
+}
+
+// ==================== МАГАЗИН ====================
+function openShop() {
+    document.getElementById('shopGold').innerText = '💰 ' + state.gold;
+    const items = document.getElementById('shopItems');
+    items.innerHTML = '';
+    // 3 випадкові предмети: 2 кубики + 1 екіпіровка, або навпаки
+    const pool = Object.keys(DICE_TYPES);
+    const eqPool = Object.keys(EQUIPMENT).filter(k => !state.equipment.includes(k));
+    const shopList = [];
+    const d1 = pool[Math.floor(Math.random()*pool.length)];
+    let d2 = pool[Math.floor(Math.random()*pool.length)];
+    while (d2 === d1) d2 = pool[Math.floor(Math.random()*pool.length)];
+    shopList.push({ kind: 'dice', id: d1, price: 15 });
+    shopList.push({ kind: 'dice', id: d2, price: 15 });
+    if (eqPool.length > 0) {
+        const eq = eqPool[Math.floor(Math.random()*eqPool.length)];
+        shopList.push({ kind: 'equip', id: eq, price: EQUIPMENT[eq].price });
+    } else {
+        shopList.push({ kind: 'heal', id: 'fullHeal', price: 20 });
+    }
+
+    shopList.forEach(item => {
+        const c = document.createElement('div');
+        c.className = 'card';
+        if (item.kind === 'dice') {
+            c.innerHTML = `<div class="icon">${DICE_TYPES[item.id].icon}</div><div class="name">${DICE_TYPES[item.id].name}</div><div class="desc">${DICE_TYPES[item.id].desc}</div><div class="price">💰 ${item.price}</div>`;
+        } else if (item.kind === 'equip') {
+            c.innerHTML = `<div class="icon">${EQUIPMENT[item.id].icon}</div><div class="name">${EQUIPMENT[item.id].name}</div><div class="desc">${EQUIPMENT[item.id].desc}</div><div class="price">💰 ${item.price}</div>`;
+        } else {
+            c.innerHTML = `<div class="icon">💖</div><div class="name">Повне лікування</div><div class="desc">Відновити все HP</div><div class="price">💰 ${item.price}</div>`;
+        }
+        c.onclick = () => buyItem(item, c);
+        items.appendChild(c);
+    });
+    showScreen('shopScreen');
+}
+
+function buyItem(item, el) {
+    if (state.gold < item.price) { log('Не вистачає золота!'); return; }
+    state.gold -= item.price;
+    document.getElementById('shopGold').innerText = '💰 ' + state.gold;
+    if (item.kind === 'dice') {
+        // Додаємо кубик (якщо менше 5) або замінюємо
+        if (state.dice.length < 5) state.dice.push(item.id);
+        else {
+            // Замінюємо перший d6
+            const idx = state.dice.indexOf('d6');
+            if (idx !== -1) state.dice[idx] = item.id;
+            else state.dice[0] = item.id;
+        }
+    } else if (item.kind === 'equip') {
+        const emptySlot = state.equipment.indexOf(null);
+        if (emptySlot !== -1) {
+            state.equipment[emptySlot] = item.id;
+            if (item.id === 'amulet') { state.maxHp += 10; state.hp += 10; }
+        }
+    } else if (item.kind === 'heal') {
+        state.hp = state.maxHp;
+    }
+    el.style.opacity = '0.3';
+    el.style.pointerEvents = 'none';
+    el.innerHTML += '<div style="color:#4caf50; margin-top:5px;">✅ Куплено</div>';
+    updateUI();
+}
+
+function leaveShop() {
+    startBattle();
+}
+
+// ==================== КІНЕЦЬ ====================
+function gameOver() {
+    document.getElementById('gameOverTitle').innerText = '💀 Ви загинули!';
+    document.getElementById('gameOverStats').innerText = `Дійшли до кімнати ${state.room}\nЗібрано золота: ${state.gold}\nКубиків у наборі: ${state.dice.length}`;
+    showScreen('gameOverScreen');
+}
+
+// ==================== СТАРТ ====================
+// Амulet старту (якщо гравець його купив — вже в екіпіровці)
+if (state.equipment.includes('amulet')) {
+    state.maxHp += 10; state.hp += 10;
+}
+startBattle();
+</script>
+</body>
+</html>
