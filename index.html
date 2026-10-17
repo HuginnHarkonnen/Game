@@ -2,1231 +2,1617 @@
 <html lang="uk">
 <head>
 <meta charset="UTF-8">
-<title>Dungeon Dice 🎲 Deckbuilder</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>КАСКАД — кольоровий рогалик</title>
 <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-        font-family: 'Comic Sans MS', 'Segoe UI', sans-serif;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: #fff;
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        user-select: none;
-        padding: 20px;
-        overflow: hidden;
-    }
-    .game {
-        background: linear-gradient(180deg, #2d1b4e 0%, #1a0f2e 100%);
-        border: 4px solid #ffeb3b;
-        border-radius: 25px;
-        padding: 25px;
-        width: 520px;
-        box-shadow: 0 0 40px rgba(255,235,59,0.3), inset 0 0 20px rgba(0,0,0,0.5);
-        position: relative;
-        transition: transform 0.1s;
-    }
-    .game.shake { animation: screenShake 0.4s; }
-    @keyframes screenShake {
-        0%,100% { transform: translate(0,0) rotate(0); }
-        20% { transform: translate(-8px,4px) rotate(-1deg); }
-        40% { transform: translate(6px,-4px) rotate(1deg); }
-        60% { transform: translate(-4px,6px) rotate(-0.5deg); }
-        80% { transform: translate(4px,-2px) rotate(0.5deg); }
-    }
-    .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-size: 1.1em; font-weight: bold; }
-    .hp-bar { background: #000; border: 2px solid #fff; border-radius: 10px; height: 22px; overflow: hidden; position: relative; flex: 1; margin: 0 8px; }
-    .hp-fill { height: 100%; background: linear-gradient(90deg, #4caf50, #8bc34a); transition: width 0.4s; }
-    .hp-fill.enemy { background: linear-gradient(90deg, #f44336, #ff5722); }
-    .hp-text { position: absolute; width: 100%; text-align: center; font-size: 0.85em; line-height: 22px; text-shadow: 1px 1px 2px #000; }
-    .gold { background: linear-gradient(135deg, #ffd700, #ffa500); color: #5d2e00; padding: 4px 12px; border-radius: 15px; border: 2px solid #fff; font-weight: bold; }
-    .energy { background: linear-gradient(135deg, #2196f3, #1565c0); color: #fff; padding: 4px 12px; border-radius: 15px; border: 2px solid #fff; font-weight: bold; margin-left: 8px; }
-    .sound-toggle { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.5); border: 2px solid #ffeb3b; color: #fff; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 1.2em; z-index: 100; }
-    .sound-toggle:hover { background: rgba(255,235,59,0.3); }
-    .enemy-zone { background: radial-gradient(circle, #3d2060 0%, #1a0f2e 100%); border: 3px dashed #9c27b0; border-radius: 20px; padding: 15px; text-align: center; margin-bottom: 10px; position: relative; overflow: hidden; }
-    .enemy-zone.boss { border-color: #ff5722; border-style: solid; box-shadow: 0 0 20px rgba(255,87,34,0.5); }
-    .enemy-zone.final { border-color: #ffd700; border-style: solid; box-shadow: 0 0 30px rgba(255,215,0,0.6); animation: finalBoss 2s infinite; }
-    @keyframes finalBoss { 0%,100% { box-shadow: 0 0 30px rgba(255,215,0,0.6); } 50% { box-shadow: 0 0 50px rgba(255,215,0,0.9); } }
-    .enemy-emoji { font-size: 4.5em; display: inline-block; transition: transform 0.3s; position: relative; z-index: 2; }
-    .enemy-emoji.shake { animation: shake 0.4s; }
-    .enemy-emoji.dead { animation: die 0.8s forwards; }
-    @keyframes shake { 0%,100% { transform: translateX(0) rotate(0); } 25% { transform: translateX(-10px) rotate(-5deg); } 75% { transform: translateX(10px) rotate(5deg); } }
-    @keyframes die { to { transform: scale(0) rotate(720deg); opacity: 0; } }
-    .boss-label { color: #ff5722; font-weight: bold; font-size: 1.2em; text-shadow: 0 0 10px #ff5722; }
-    .final-label { color: #ffd700; font-weight: bold; font-size: 1.3em; text-shadow: 0 0 15px #ffd700; }
-    .deck-info { display: flex; justify-content: space-around; font-size: 0.85em; margin: 8px 0; background: rgba(0,0,0,0.3); padding: 6px; border-radius: 10px; }
-    .dice-zone { display: flex; justify-content: center; gap: 10px; margin: 10px 0; min-height: 80px; flex-wrap: wrap; }
-    .die { width: 62px; height: 62px; border-radius: 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; border: 3px solid #fff; box-shadow: 0 5px 0 rgba(0,0,0,0.4); transition: all 0.2s; position: relative; }
-    .die:hover:not(.used):not(.disabled) { transform: translateY(-8px) scale(1.05); }
-    .die.disabled { opacity: 0.4; cursor: not-allowed; }
-    .die.used { opacity: 0.3; cursor: not-allowed; transform: scale(0.8); }
-    .die.legendary { border-color: #ffd700; box-shadow: 0 0 15px #ffd700, 0 5px 0 rgba(0,0,0,0.4); animation: legendaryGlow 2s infinite; }
-    .die.cursed { border-color: #9c27b0; box-shadow: 0 0 15px #9c27b0, 0 5px 0 rgba(0,0,0,0.4); animation: cursedGlow 2s infinite; }
-    @keyframes legendaryGlow { 0%,100% { box-shadow: 0 0 15px #ffd700, 0 5px 0 rgba(0,0,0,0.4); } 50% { box-shadow: 0 0 25px #ffd700, 0 5px 0 rgba(0,0,0,0.4); } }
-    @keyframes cursedGlow { 0%,100% { box-shadow: 0 0 15px #9c27b0, 0 5px 0 rgba(0,0,0,0.4); } 50% { box-shadow: 0 0 25px #9c27b0, 0 5px 0 rgba(0,0,0,0.4); } }
-    .die.attack { background: linear-gradient(135deg, #ff5252, #c62828); color: #fff; }
-    .die.defend { background: linear-gradient(135deg, #42a5f5, #1565c0); color: #fff; }
-    .die.heal { background: linear-gradient(135deg, #66bb6a, #2e7d32); color: #fff; }
-    .die.fire { background: linear-gradient(135deg, #ff5722, #d84315); color: #fff; }
-    .die.ice { background: linear-gradient(135deg, #e1f5fe, #4dd0e1); color: #01579b; }
-    .die.vamp { background: linear-gradient(135deg, #880e4f, #4a148c); color: #fff; }
-    .die.poison { background: linear-gradient(135deg, #aed581, #33691e); color: #fff; }
-    .die.time { background: linear-gradient(135deg, #b3e5fc, #0277bd); color: #fff; }
-    .die.lightning { background: linear-gradient(135deg, #fff59d, #f57f17); color: #fff; }
-    .die.chaos { background: linear-gradient(135deg, #ce93d8, #4a148c); color: #fff; }
-    .die.star { background: linear-gradient(135deg, #fff9c4, #ffc107); color: #5d4037; }
-    .die.death { background: linear-gradient(135deg, #424242, #000); color: #f44336; }
-    .die.blood { background: linear-gradient(135deg, #b71c1c, #4a0000); color: #fff; }
-    .die.spider { background: linear-gradient(135deg, #424242, #1a1a1a); color: #aed581; }
-    .die.eye { background: linear-gradient(135deg, #7b1fa2, #311b92); color: #fff; }
-    .die.bone { background: linear-gradient(135deg, #e0e0e0, #9e9e9e); color: #424242; }
-    .die.darkness { background: linear-gradient(135deg, #1a1a1a, #000); color: #9c27b0; }
-    .die-icon { font-size: 1.1em; }
-    .die-val { font-size: 1.4em; line-height: 1; }
-    .die.rolling { animation: roll 0.6s; }
-    @keyframes roll { 0% { transform: rotate(0) scale(0.5); } 50% { transform: rotate(360deg) scale(1.2); } 100% { transform: rotate(720deg) scale(1); } }
-    .btn { flex: 1; padding: 10px; border: 3px solid #fff; border-radius: 12px; cursor: pointer; font-weight: bold; font-size: 0.95em; color: #fff; transition: all 0.2s; box-shadow: 0 4px 0 rgba(0,0,0,0.3); }
-    .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 0 rgba(0,0,0,0.3); }
-    .btn:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,0.3); }
-    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .btn-end { background: linear-gradient(135deg, #9c27b0, #6a1b9a); width: 100%; margin-top: 10px; }
-    .btn-roll { background: linear-gradient(135deg, #ff9800, #e65100); width: 100%; margin-bottom: 8px; }
-    .log { background: rgba(0,0,0,0.4); padding: 10px; border-radius: 10px; text-align: center; font-size: 0.9em; min-height: 40px; display: flex; align-items: center; justify-content: center; margin-top: 10px; }
-    .inventory { display: flex; gap: 8px; margin-top: 12px; justify-content: center; }
-    .inv-slot { width: 50px; height: 50px; background: rgba(0,0,0,0.5); border: 2px dashed #ffeb3b; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.6em; position: relative; }
-    .inv-slot.filled { border-style: solid; background: rgba(255,235,59,0.2); }
-    .inv-slot .tooltip { display: none; position: absolute; bottom: 110%; background: #000; padding: 5px 10px; border-radius: 8px; font-size: 0.5em; white-space: nowrap; z-index: 10; }
-    .inv-slot:hover .tooltip { display: block; }
+:root{
+  --bg:#080c16; --panel:#111a2c; --panel2:#0d1524;
+  --line:rgba(150,180,240,.16);
+  --text:#e8eefc; --muted:#8394b8;
+  --teal:#5eead4; --gold:#ffc46b; --red:#ff7a90; --violet:#c084fc;
+  --c-red:#ff6b6b; --c-blue:#4dabf7; --c-green:#51cf66;
+  --c-yellow:#ffd43b; --c-purple:#cc5de8;
+  --mono:"Courier New",ui-monospace,monospace;
+  --display:"Trebuchet MS",system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%;
+  overflow-x:hidden;
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+}
+body{
+  background:
+    radial-gradient(900px 600px at 10% -10%,#1b2b4a 0%,transparent 60%),
+    radial-gradient(800px 700px at 110% 110%,#33204a 0%,transparent 55%),
+    var(--bg);
+  color:var(--text);font-family:var(--mono);
+  -webkit-font-smoothing:antialiased;
+}
+button{font-family:inherit;cursor:pointer}
+::selection{background:var(--teal);color:#052e2b}
+.app{max-width:1080px;margin:0 auto;padding:20px}
 
-    .screen { display: none; animation: fadeIn 0.3s; }
-    .screen.active { display: block; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+.top{display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:18px}
+.brand{display:flex;align-items:center;gap:12px;margin-right:auto}
+.mark{display:grid;grid-template-columns:1fr 1fr;gap:3px;width:34px;height:34px;flex:none}
+.mark i{border-radius:4px;animation:breathe 3s ease-in-out infinite}
+.mark i:nth-child(1){background:var(--c-red)}
+.mark i:nth-child(2){background:var(--c-blue);animation-delay:.4s}
+.mark i:nth-child(3){background:var(--c-green);animation-delay:.8s}
+.mark i:nth-child(4){background:var(--c-yellow);animation-delay:1.2s}
+@keyframes breathe{50%{opacity:.45;transform:scale(.85)}}
+h1{font-family:var(--display);font-size:28px;font-weight:800;letter-spacing:.24em;line-height:1}
+.brand small{display:block;font-size:9px;letter-spacing:.2em;color:var(--muted);margin-top:6px;text-transform:uppercase}
+.hud{display:flex;gap:22px;flex-wrap:wrap}
+.stat{display:flex;flex-direction:column;gap:4px;min-width:48px}
+.stat span{font-size:10px;letter-spacing:.16em;color:var(--muted);text-transform:uppercase}
+.stat b{font-size:26px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.stat.gold b{color:var(--gold)}
+.stat.ess b{color:var(--violet)}
+.stat.moves b{color:var(--teal)}
+.top-actions{display:flex;gap:6px}
+.iconbtn{
+  width:34px;height:34px;border:1px solid var(--line);border-radius:9px;
+  background:rgba(255,255,255,.03);color:var(--muted);font-size:15px;transition:.18s;
+}
+.iconbtn:hover{color:var(--teal);border-color:var(--teal);transform:translateY(-2px)}
 
-    .reward-tabs { display: flex; gap: 8px; margin-bottom: 15px; }
-    .tab { flex: 1; padding: 10px; background: rgba(0,0,0,0.4); border: 2px solid #ffeb3b; border-radius: 10px; cursor: pointer; text-align: center; font-weight: bold; transition: all 0.2s; }
-    .tab:hover { background: rgba(255,235,59,0.2); }
-    .tab.active { background: #ffeb3b; color: #1a0f2e; }
-    .reward-cards, .shop-items { display: flex; gap: 10px; justify-content: center; margin: 15px 0; flex-wrap: wrap; }
-    .card { background: linear-gradient(180deg, #3d2060, #1a0f2e); border: 3px solid #ffeb3b; border-radius: 15px; padding: 12px; width: 130px; text-align: center; cursor: pointer; transition: all 0.2s; }
-    .card:hover { transform: translateY(-8px) scale(1.05); box-shadow: 0 0 20px #ffeb3b; }
-    .card.legendary { border-color: #ffd700; box-shadow: 0 0 15px #ffd700; }
-    .card.legendary:hover { box-shadow: 0 0 30px #ffd700; }
-    .card.cursed { border-color: #9c27b0; box-shadow: 0 0 15px #9c27b0; }
-    .card.cursed:hover { box-shadow: 0 0 30px #9c27b0; }
-    .card .icon { font-size: 2.5em; margin-bottom: 5px; }
-    .card .name { font-weight: bold; font-size: 0.95em; margin-bottom: 5px; }
-    .card .desc { font-size: 0.7em; color: #ccc; }
-    .card .price { color: #ffd700; font-weight: bold; margin-top: 5px; }
-    .card.chosen { border-color: #4caf50; box-shadow: 0 0 20px #4caf50; }
-    .deck-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin: 15px 0; }
-    .deck-card { background: rgba(0,0,0,0.4); border: 2px solid #ffeb3b; border-radius: 10px; padding: 8px; text-align: center; cursor: pointer; transition: all 0.2s; font-size: 0.8em; }
-    .deck-card:hover { transform: scale(1.05); border-color: #f44336; }
-    .deck-card.legendary { border-color: #ffd700; }
-    .deck-card.cursed { border-color: #9c27b0; }
-    .deck-card .dc-icon { font-size: 1.8em; }
-    .deck-card.chosen { border-color: #f44336; background: rgba(244,67,54,0.2); }
-    h2 { text-align: center; margin-bottom: 10px; text-shadow: 2px 2px 0 #000; }
-    .gold-bounce { animation: bounce 0.6s; }
-    @keyframes bounce { 0%,100% { transform: scale(1); } 50% { transform: scale(1.4); } }
-    .status-effects { font-size: 0.85em; margin-top: 5px; min-height: 18px; }
-    .warning { color: #ff5722; font-weight: bold; animation: pulse 1s infinite; }
-    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+.layout{display:grid;grid-template-columns:minmax(0,600px) minmax(250px,300px);gap:20px;justify-content:center;align-items:start}
+.stage{
+  position:relative;background:var(--panel2);border:1px solid var(--line);
+  border-radius:18px;padding:14px;box-shadow:0 30px 70px -30px #000;
+}
+.stage-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;min-height:18px}
+.stage-head b{font-size:11px;letter-spacing:.18em;color:var(--muted)}
+#bossLabel{font-size:10px;color:var(--red);text-align:right;line-height:1.5}
 
-    .menu-screen { text-align: center; }
-    .menu-title { font-size: 3em; margin-bottom: 20px; text-shadow: 3px 3px 0 #000; }
-    .menu-btn { display: block; width: 80%; margin: 15px auto; padding: 15px; font-size: 1.3em; }
-    .tutorial-content { text-align: left; background: rgba(0,0,0,0.4); padding: 20px; border-radius: 15px; margin: 15px 0; font-size: 0.9em; line-height: 1.6; }
-    .tutorial-content h3 { color: #ffeb3b; margin: 15px 0 10px 0; }
-    .tutorial-content ul { margin-left: 20px; }
+.grid{
+  display:grid;grid-template-columns:repeat(7,1fr);gap:8px;
+  width:100%;aspect-ratio:1;touch-action:none;user-select:none;outline:none;
+}
+.cell{
+  aspect-ratio:1;border-radius:10px;position:relative;
+  display:flex;align-items:center;justify-content:center;
+  font-size:clamp(16px,3vw,28px);font-weight:700;
+  color:rgba(255,255,255,.9);text-shadow:0 1px 3px rgba(0,0,0,.4);
+  box-shadow:inset 0 -5px 0 rgba(0,0,0,.25),inset 0 2px 0 rgba(255,255,255,.25);
+  transition:transform .15s,filter .15s,outline-color .15s;
+  cursor:pointer;outline:3px solid transparent;outline-offset:-3px;
+}
+.cell.red{background:var(--c-red)}
+.cell.blue{background:var(--c-blue)}
+.cell.green{background:var(--c-green)}
+.cell.yellow{background:var(--c-yellow);color:rgba(90,60,0,.75);text-shadow:none}
+.cell.purple{background:var(--c-purple)}
+.cell:hover{filter:brightness(1.15);transform:translateY(-2px)}
+.cell.selected{outline-color:#fff;transform:scale(1.07);z-index:4;filter:brightness(1.15)}
+.cell.cursor{outline:2px dashed rgba(255,255,255,.55)}
+.cell.stone{
+  background:repeating-linear-gradient(45deg,#39445c,#39445c 6px,#2f3950 6px,#2f3950 12px);
+  color:#8b9ab8;cursor:not-allowed;box-shadow:inset 0 0 0 2px rgba(0,0,0,.3);
+}
+.cell.cursed::after{
+  content:"";position:absolute;top:5px;right:5px;width:7px;height:7px;
+  border-radius:50%;background:#0a0e1a;box-shadow:0 0 0 2px rgba(255,255,255,.5);
+}
+.cell.frozen{opacity:.5;filter:grayscale(.7) brightness(.8)}
+.cell.fog{
+  background:#1a233a !important;
+  color:rgba(255,255,255,0.2) !important;
+  text-shadow:none !important;
+  box-shadow:inset 0 0 0 2px rgba(100,120,160,0.3) !important;
+}
+.cell.falling{animation:drop .32s ease-out}
+@keyframes drop{from{transform:translateY(-38px);opacity:.35}to{transform:translateY(0);opacity:1}}
+.cell.removing{animation:pop .3s ease-in forwards;z-index:5}
+@keyframes pop{
+  0%{transform:scale(1)}
+  45%{transform:scale(1.22);filter:brightness(1.7)}
+  100%{transform:scale(0);opacity:0}
+}
+.cell.breaking{animation:crack .3s ease-in forwards}
+@keyframes crack{50%{filter:brightness(2)}100%{transform:scale(.6) rotate(12deg);opacity:0}}
+.stage.aiming .cell:not(.stone):hover{outline-color:var(--red);transform:scale(1.1)}
+.stage.aiming{box-shadow:0 0 0 2px var(--red),0 30px 70px -30px #000}
 
-    /* ЕФЕКТИ */
-    .fx-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; overflow: hidden; border-radius: 20px; }
-    .float-num {
-        position: absolute;
-        font-weight: bold;
-        font-size: 1.8em;
-        text-shadow: 2px 2px 0 #000, -1px -1px 0 #000;
-        pointer-events: none;
-        animation: floatUp 1.2s forwards;
-        z-index: 60;
-    }
-    .float-num.damage { color: #ff5252; }
-    .float-num.heal { color: #66bb6a; }
-    .float-num.block { color: #42a5f5; }
-    .float-num.crit { color: #ffd700; font-size: 2.4em; }
-    @keyframes floatUp {
-        0% { opacity: 1; transform: translateY(0) scale(0.5); }
-        20% { transform: translateY(-20px) scale(1.3); }
-        100% { opacity: 0; transform: translateY(-80px) scale(1); }
-    }
-    .particle {
-        position: absolute;
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        pointer-events: none;
-        animation: particleFly 0.8s forwards;
-    }
-    @keyframes particleFly {
-        0% { opacity: 1; transform: translate(0,0) scale(1); }
-        100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0); }
-    }
-    .flash {
-        position: absolute;
-        top: 0; left: 0; width: 100%; height: 100%;
-        pointer-events: none;
-        opacity: 0;
-        animation: flash 0.4s;
-        z-index: 55;
-    }
-    @keyframes flash {
-        0% { opacity: 0.7; }
-        100% { opacity: 0; }
-    }
-    .flash.hit { background: radial-gradient(circle, rgba(255,82,82,0.6), transparent); }
-    .flash.heal { background: radial-gradient(circle, rgba(102,187,106,0.6), transparent); }
-    .flash.block { background: radial-gradient(circle, rgba(66,165,245,0.6), transparent); }
-    .flash.gold { background: radial-gradient(circle, rgba(255,215,0,0.6), transparent); }
+.side{display:flex;flex-direction:column;gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+.card h3{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.card h3 em{font-style:normal;color:var(--teal);letter-spacing:0}
+.target-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.target-top small{font-size:10px;color:var(--muted)}
+.target-top b{font-size:30px;color:var(--teal);font-variant-numeric:tabular-nums}
+.target-top b i{font-style:normal;font-size:13px;color:var(--muted)}
+.bar{height:7px;border-radius:5px;background:rgba(255,255,255,.07);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#2dd4bf,#5eead4);transition:width .4s ease;border-radius:5px}
+.bar.done i{background:linear-gradient(90deg,#ffc46b,#ffe0a3)}
+.hand-read{display:flex;align-items:center;gap:8px;font-size:22px;font-weight:700}
+.hand-read .chips{color:#7dd3fc}
+.hand-read .mult{color:var(--red)}
+.hand-read .eq{color:var(--muted);font-size:14px}
+.hand-read .total{color:var(--gold)}
+.hand-sub{font-size:11px;color:var(--muted);margin-top:7px;line-height:1.6}
+.inv-list{display:flex;flex-direction:column;gap:7px}
+.inv-empty{font-size:11px;color:var(--muted);text-align:center;padding:12px 0;line-height:1.7}
+.inv-row{display:flex;gap:9px;align-items:center;padding:8px;background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:9px}
+.inv-row .ic{font-size:19px;flex:none}
+.inv-row .tx{flex:1;min-width:0}
+.inv-row .tx b{font-size:11px;display:block}
+.inv-row .tx small{font-size:9px;color:var(--muted);line-height:1.5;display:block;margin-top:2px}
+.sell{border:none;background:transparent;color:var(--muted);font-size:15px;padding:2px 5px;border-radius:5px}
+.sell:hover{color:var(--red);background:rgba(255,122,144,.12)}
+.items-row{display:flex;gap:7px;flex-wrap:wrap}
+.item-btn{
+  flex:1;min-width:64px;padding:9px 5px;border:1px solid var(--line);border-radius:9px;
+  background:rgba(255,255,255,.03);color:var(--text);text-align:center;transition:.18s;
+}
+.item-btn:hover:not(:disabled){border-color:var(--teal);background:rgba(94,234,212,.08);transform:translateY(-2px)}
+.item-btn:disabled{opacity:.3;cursor:not-allowed}
+.item-btn.active{border-color:var(--red);background:rgba(255,122,144,.15)}
+.item-btn .ic{display:block;font-size:21px;margin-bottom:4px}
+.item-btn small{font-size:9px;color:var(--muted)}
+.tip{font-size:10px;line-height:1.8;color:var(--muted);padding:0 4px}
+.tip b{color:var(--teal);font-weight:normal}
+
+.modal{
+  position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;
+  padding:18px;background:rgba(4,7,15,.8);backdrop-filter:blur(8px);
+  opacity:0;visibility:hidden;transition:.25s;
+}
+.modal.show{opacity:1;visibility:visible}
+.panel{
+  width:100%;max-width:620px;max-height:92vh;overflow-y:auto;
+  background:linear-gradient(160deg,#16223a,#0c1322);
+  border:1px solid var(--line);border-radius:18px;padding:26px;
+  box-shadow:0 40px 100px -20px #000;transform:translateY(14px);transition:.25s;
+}
+.modal.show .panel{transform:none}
+.eyebrow{font-size:9px;letter-spacing:.24em;text-transform:uppercase;color:var(--teal);margin-bottom:10px}
+.panel h2{font-family:var(--display);font-size:26px;font-weight:800;margin-bottom:12px;letter-spacing:-.01em}
+.panel p{font-size:12px;line-height:1.85;color:var(--muted);margin-bottom:14px}
+.panel p b{color:var(--text);font-weight:normal}
+.panel h3{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:18px 0 10px;display:flex;justify-content:space-between;align-items:center}
+.panel h3 small{font-size:10px;letter-spacing:0;color:var(--teal)}
+#replaceModal{z-index:1200}
+#metaModal{z-index:1300}
+#overModal{z-index:1100}
+
+.btn{
+  padding:11px 16px;border:1px solid var(--line);border-radius:10px;
+  background:rgba(255,255,255,.04);color:var(--text);font-size:12px;transition:.18s;
+}
+.btn:hover:not(:disabled){border-color:var(--teal);color:var(--teal);transform:translateY(-1px)}
+.btn:disabled{opacity:.32;cursor:not-allowed}
+.btn.primary{background:var(--teal);color:#052e2b;border-color:var(--teal);font-weight:700}
+.btn.primary:hover:not(:disabled){background:#8ff5e2;color:#052e2b}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+.btn.ghost:hover{color:var(--text);background:rgba(255,255,255,.05)}
+.btn-row{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
+.btn-row .primary{flex:1}
+
+.reward-box{
+  display:flex;flex-wrap:wrap;gap:14px;padding:14px;border-radius:11px;
+  background:rgba(255,196,107,.07);border:1px solid rgba(255,196,107,.22);margin-bottom:12px;
+}
+.reward-box div{font-size:10px;color:var(--muted);line-height:1.7}
+.reward-box b{display:block;font-size:19px;color:var(--gold);font-weight:700}
+.shop-gold{font-size:13px;color:var(--muted);margin-bottom:6px}
+.shop-gold b{color:var(--gold);font-size:20px}
+.shop-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.shop-item{
+  text-align:left;padding:13px;border:1px solid var(--line);border-radius:11px;
+  background:rgba(255,255,255,.03);color:var(--text);transition:.18s;position:relative;
+}
+.shop-item:hover:not(.owned){border-color:var(--teal);background:rgba(94,234,212,.07);transform:translateY(-2px)}
+.shop-item .ic{font-size:25px;display:block;margin-bottom:7px}
+.shop-item .nm{font-size:12px;font-weight:700;display:block;margin-bottom:5px}
+.shop-item .ds{font-size:10px;line-height:1.65;color:var(--muted);display:block;min-height:32px}
+.shop-item .pr{font-size:12px;color:var(--gold);display:block;margin-top:9px;font-weight:700}
+.shop-item.poor .pr{color:var(--red)}
+.shop-item.owned{opacity:.4;cursor:default}
+.shop-item.owned::after{content:"МАЄШ";position:absolute;top:12px;right:10px;font-size:8px;letter-spacing:.1em;color:var(--teal)}
+.shop-foot{display:flex;gap:10px;align-items:center;margin-top:20px}
+.shop-foot .primary{flex:1}
+
+.meta-balance{display:flex;align-items:center;gap:10px;padding:14px;border-radius:11px;background:rgba(192,132,252,.08);border:1px solid rgba(192,132,252,.25);margin-bottom:8px}
+.meta-balance b{font-size:26px;color:var(--violet)}
+.meta-balance span{font-size:11px;color:var(--muted);line-height:1.7}
+.meta-list{display:flex;flex-direction:column;gap:9px}
+.meta-row{display:flex;gap:12px;align-items:center;padding:13px;border:1px solid var(--line);border-radius:11px;background:rgba(255,255,255,.03)}
+.meta-row .ic{font-size:24px;flex:none}
+.meta-row .tx{flex:1}
+.meta-row .tx b{font-size:12px;display:block;margin-bottom:4px}
+.meta-row .tx small{font-size:10px;color:var(--muted);line-height:1.6;display:block}
+.pips{display:flex;gap:4px;margin-top:7px}
+.pips i{width:16px;height:4px;border-radius:2px;background:rgba(255,255,255,.12)}
+.pips i.on{background:var(--violet)}
+.meta-row button{min-width:66px;font-size:11px;padding:9px}
+.meta-stats{display:flex;gap:22px;margin-top:18px;flex-wrap:wrap}
+.meta-stats div{font-size:10px;color:var(--muted)}
+.meta-stats b{display:block;font-size:20px;color:var(--text);margin-top:4px}
+
+.float-number{
+  position:fixed;z-index:2000;pointer-events:none;
+  font-family:var(--display);font-weight:800;font-size:36px;
+  color:var(--gold);text-shadow:0 0 18px rgba(255,196,107,.75),0 2px 4px #000;
+  animation:floatUp 1.15s ease-out forwards;white-space:nowrap;
+}
+.float-number small{display:block;font-family:var(--mono);font-size:11px;font-weight:400;color:#fff;text-shadow:0 1px 3px #000;text-align:center;margin-top:2px}
+@keyframes floatUp{
+  0%{opacity:0;transform:translate(-50%,0) scale(.6)}
+  20%{opacity:1;transform:translate(-50%,-18px) scale(1.15)}
+  60%{opacity:1;transform:translate(-50%,-52px) scale(1)}
+  100%{opacity:0;transform:translate(-50%,-95px) scale(.9)}
+}
+.particle{position:fixed;width:5px;height:5px;border-radius:2px;pointer-events:none;z-index:1999;animation:part .65s ease-out forwards}
+@keyframes part{to{transform:translate(var(--dx),var(--dy)) scale(0);opacity:0}}
+.banner{
+  position:fixed;left:50%;top:38%;transform:translate(-50%,-50%);
+  font-family:var(--display);font-size:44px;font-weight:800;letter-spacing:.02em;
+  color:var(--gold);text-shadow:0 0 30px rgba(255,196,107,.6),0 4px 12px #000;
+  pointer-events:none;opacity:0;z-index:900;white-space:nowrap;
+}
+.banner.show{animation:bannerPop 1s ease-out}
+@keyframes bannerPop{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.6) rotate(-5deg)}
+  25%{opacity:1;transform:translate(-50%,-50%) scale(1.12) rotate(-2deg)}
+  70%{opacity:1;transform:translate(-50%,-50%) scale(1)}
+  100%{opacity:0;transform:translate(-50%,-70%) scale(1)}
+}
+.banner.c2 { color: #5eead4; text-shadow: 0 0 40px #5eead4; font-size: 52px; }
+.banner.c3 { 
+  color: #c084fc; 
+  text-shadow: 0 0 50px #c084fc, 0 0 100px #5eead4; 
+  font-size: 60px; 
+  animation: bannerPop 1s ease-out, rainbow 2s linear infinite !important;
+}
+.banner.c4 { 
+  color: #ff7a90; 
+  text-shadow: 0 0 60px #ff7a90, 0 0 120px #ffc46b; 
+  font-size: 72px; 
+  animation: bannerPop 1s ease-out, shake 0.5s ease-in-out infinite !important;
+}
+@keyframes rainbow {
+  0% { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(360deg); }
+}
+@keyframes shake {
+  0%, 100% { transform: translate(-50%, -50%) rotate(-2deg) scale(1.1); }
+  50% { transform: translate(-50%, -50%) rotate(2deg) scale(1.15); }
+}
+.toast{
+  position:absolute;left:50%;bottom:20px;transform:translate(-50%,8px);
+  padding:9px 15px;border:1px solid var(--line);border-radius:20px;
+  background:rgba(8,13,24,.95);font-size:11px;color:var(--teal);
+  opacity:0;transition:.25s;pointer-events:none;white-space:nowrap;z-index:20;
+}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+@media(max-width:900px){
+  .app{padding:14px}
+  .layout{grid-template-columns:1fr;max-width:560px;margin:0 auto}
+  .side{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .tip{grid-column:1/-1}
+  .top{gap:14px}
+  .hud{gap:16px}
+  .stat b{font-size:22px}
+  .brand{width:100%}
+  .top-actions{margin-left:auto}
+}
+
+@media(max-width:600px){
+  .app{padding:10px}
+  .top{flex-wrap:wrap;gap:10px}
+  .brand{width:100%;margin-bottom:4px}
+  h1{font-size:22px;letter-spacing:.18em}
+  .brand small{font-size:8px}
+  
+  .hud{gap:10px;flex-wrap:wrap}
+  .stat{min-width:36px}
+  .stat b{font-size:18px}
+  .stat span{font-size:8px}
+  
+  .top-actions{margin-left:auto}
+  .iconbtn{width:30px;height:30px;font-size:13px}
+  
+  .layout{gap:12px}
+  
+  /* Сітка займає всю ширину */
+  .stage{padding:10px}
+  .grid{gap:5px}
+  .cell{font-size:clamp(14px,12vw,24px);border-radius:8px}
+  
+  /* Бічна панель — одна колонка */
+  .side{display:flex;flex-direction:column;gap:8px}
+  .card{padding:10px}
+  .card h3{font-size:10px;margin-bottom:8px}
+  .target-top b{font-size:24px}
+  .hand-read{font-size:18px}
+  
+  .items-row{gap:5px}
+  .item-btn{min-width:50px;padding:7px 4px}
+  .item-btn .ic{font-size:18px}
+  
+  .inv-row{padding:6px}
+  .inv-row .ic{font-size:16px}
+  .inv-row .tx b{font-size:10px}
+  
+  .tip{font-size:9px;line-height:1.7}
+}
+
+@media(max-width:380px){
+  .stat b{font-size:16px}
+  .cell{font-size:clamp(12px,11vw,20px)}
+  .grid{gap:4px}
+  h1{font-size:18px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
 </style>
 </head>
 <body>
-<div class="game" id="gameContainer">
-    <button class="sound-toggle" id="soundToggle" onclick="toggleSound()">🔊</button>
-    <div class="fx-layer" id="fxLayer"></div>
-
-    <!-- МЕНЮ -->
-    <div class="screen active menu-screen" id="menuScreen">
-        <div class="menu-title">🎲 Dungeon Dice</div>
-        <p style="font-size: 1.2em; margin-bottom: 30px;">Deckbuilder Roguelike</p>
-        <button class="btn menu-btn" style="background: linear-gradient(135deg, #4caf50, #2e7d32);" onclick="startGame()">🎮 Грати</button>
-        <button class="btn menu-btn" style="background: linear-gradient(135deg, #2196f3, #1565c0);" onclick="showTutorial()">📖 Як грати</button>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <div class="mark"><i></i><i></i><i></i><i></i></div>
+      <div><h1>КАСКАД</h1><small>кольоровий рогалик</small></div>
     </div>
+    <div class="hud">
+      <div class="stat"><span>Раунд</span><b id="hRound">1</b></div>
+      <div class="stat moves"><span>Ходи</span><b id="hMoves">8</b></div>
+      <div class="stat"><span>Очки</span><b id="hScore">0</b></div>
+      <div class="stat gold"><span>Золото</span><b id="hGold">0</b></div>
+      <div class="stat ess"><span>🔮 Есенція</span><b id="hEssence">0</b></div>
+    </div>
+    <div class="top-actions">
+      <button class="iconbtn" id="btnMeta" title="Майстерня (постійні покращення)">🔮</button>
+      <button class="iconbtn" id="btnSound" title="Звук">♪</button>
+      <button class="iconbtn" id="btnHelp" title="Як грати">?</button>
+      <button class="iconbtn" id="btnRestart" title="Новий забіг">↺</button>
+      <button class="iconbtn" onclick="showLeaderboard()" title="Таблиця лідерів">🏆</button>
+    </div>
+  </header>
 
-    <!-- НАВЧАННЯ -->
-    <div class="screen" id="tutorialScreen">
-        <h2>📖 Як грати</h2>
-        <div class="tutorial-content">
-            <h3>🎯 Мета</h3>
-            <p>Пройдіть 20 кімнат підземелля та переможіть фінального боса Хроноса!</p>
-            <h3>🎲 Кубики = Дії</h3>
-            <p>Кожен кубик має вбудовану дію:</p>
-            <ul>
-                <li>🔴 <b>Червоні</b> — Атака (завдають шкоди)</li>
-                <li>🔵 <b>Сині</b> — Блок (захищають від шкоди)</li>
-                <li>🟢 <b>Зелені</b> — Лікування (відновлюють HP)</li>
-                <li>🟡 <b>Спеціальні</b> — Унікальні ефекти</li>
-                <li>🟣 <b>Прокляті</b> — Сильні, але з негативними ефектами</li>
-            </ul>
-            <h3>⚡ Енергія</h3>
-            <p>За хід можна зіграти <b>3 кубики</b>. Реліквії дають +1 енергію.</p>
-            <h3>🎴 Колода</h3>
-            <p>На початку ходу тягнете 5 кубиків. Коли колода закінчується — скид перемішується назад.</p>
-            <h3>🏪 Магазин</h3>
-            <p>Кожні 5 кімнат — магазин. Купуйте нові кубики, екіпіровку та реліквії.</p>
-            <h3>👹 Боси</h3>
-            <p>Кімната 10 — Дракон<br>Кімната 20 — Фінальний бос Хронос</p>
+  <div class="layout">
+    <section class="stage" id="stage">
+      <div class="stage-head">
+        <b id="roundLabel">РАУНД 01</b>
+        <span id="bossLabel"></span>
+      </div>
+      <div class="grid" id="grid" tabindex="0" aria-label="Ігрове поле 7 на 7"></div>
+      <div class="toast" id="toast"></div>
+    </section>
+
+    <aside class="side">
+      <div class="card">
+        <h3>Ціль раунду <em id="goalTag">Звичайний</em></h3>
+        <div class="target-top">
+          <b><span id="sScore">0</span> <i>/ <span id="sTarget">350</span></i></b>
+          <small id="sLeft">лишилось 350</small>
         </div>
-        <button class="btn btn-roll" onclick="showMenu()" style="width:100%;">← Назад до меню</button>
-    </div>
+        <div class="bar" id="bar"><i id="barFill"></i></div>
+      </div>
 
-    <!-- ЕКРАН БОЮ -->
-    <div class="screen" id="battleScreen">
-        <div class="top-bar">
-            <span>❤️</span>
-            <div class="hp-bar">
-                <div class="hp-fill" id="playerHPFill" style="width:100%"></div>
-                <div class="hp-text" id="playerHPText">30/30</div>
-            </div>
-            <span class="gold" id="goldDisplay">💰 0</span>
-            <span class="energy" id="energyDisplay">⚡ 3/3</span>
+      <div class="card">
+        <h3>Останній збіг</h3>
+        <div class="hand-read">
+          <span class="chips" id="rChips">0</span>
+          <span class="eq">×</span>
+          <span class="mult" id="rMult">1</span>
+          <span class="eq">=</span>
+          <span class="total" id="rTotal">0</span>
         </div>
+        <div class="hand-sub" id="rSub">Збери 3 в ряд — решта підтягнеться.</div>
+      </div>
 
-        <div class="enemy-zone" id="enemyZone">
-            <div><span id="roomLabel">Кімната 1</span> <span id="bossLabel" class="boss-label" style="display:none;">⚠️ БОС ⚠️</span> <span id="finalLabel" class="final-label" style="display:none;">🌌 ФІНАЛЬНИЙ БОС 🌌</span></div>
-            <div class="enemy-emoji" id="enemyEmoji">👹</div>
-            <div class="hp-bar" style="margin-top:10px;">
-                <div class="hp-fill enemy" id="enemyHPFill" style="width:100%"></div>
-                <div class="hp-text" id="enemyHPText">20/20</div>
-            </div>
-            <div class="status-effects" id="enemyStatus"></div>
-        </div>
+      <div class="card">
+        <h3>Артефакти <em id="slotInfo">0 / 4</em></h3>
+        <div class="inv-list" id="artifacts"></div>
+      </div>
 
-        <div class="deck-info">
-            <span>🂠 Колода: <b id="deckCount">3</b></span>
-            <span>✋ Рука: <b id="handCount">0</b></span>
-            <span>♻️ Скид: <b id="discardCount">0</b></span>
-        </div>
+      <div class="card">
+        <h3>Розхідники <em id="itemInfo">0 / 3</em></h3>
+        <div class="items-row" id="items"></div>
+      </div>
 
-        <div class="dice-zone" id="diceZone"></div>
-
-        <button class="btn btn-roll" id="rollBtn" onclick="drawHand()">✋ Кинути кубики</button>
-
-        <button class="btn btn-end" id="endBtn" onclick="endTurn()" disabled>⏭️ Завершити хід</button>
-
-        <div class="inventory" id="inventory"></div>
-
-        <div class="log" id="log">Тягніть кубики з колоди!</div>
-    </div>
-
-    <!-- ЕКРАН НАГОРОДИ -->
-    <div class="screen" id="rewardScreen">
-        <h2>🎁 Перемога!</h2>
-        <p style="text-align:center; color:#ffeb3b;" id="rewardGold"></p>
-        <div class="reward-tabs">
-            <div class="tab active" onclick="switchTab('add', this)">➕ Додати</div>
-            <div class="tab" onclick="switchTab('remove', this)">➖ Видалити</div>
-            <div class="tab" onclick="skipReward()">⏭️ Продовжити</div>
-        </div>
-        <div id="rewardContent"></div>
-    </div>
-
-    <!-- ЕКРАН МАГАЗИНУ -->
-    <div class="screen" id="shopScreen">
-        <h2>🏪 Магазин мандрівника</h2>
-        <p style="text-align:center;" class="gold" id="shopGold">💰 0</p>
-        <div class="shop-items" id="shopItems"></div>
-        <button class="btn btn-roll" onclick="leaveShop()" style="width:100%;">🚪 Піти далі</button>
-    </div>
-
-    <!-- ЕКРАН ПЕРЕМОГИ -->
-    <div class="screen" id="victoryScreen">
-        <h2 style="color: #ffd700;">🏆 ПЕРЕМОГА! 🏆</h2>
-        <p style="text-align:center; font-size:1.3em; margin:30px 0;">Ви перемогли Хроноса і врятували підземелля!</p>
-        <p style="text-align:center; font-size:1.1em; margin:20px 0; white-space:pre-line;" id="victoryStats"></p>
-        <button class="btn btn-roll" onclick="location.reload()" style="width:100%;">🔄 Грати знову</button>
-    </div>
-
-    <!-- ЕКРАН КІНЦЯ ГРИ -->
-    <div class="screen" id="gameOverScreen">
-        <h2 id="gameOverTitle">💀 Ви загинули</h2>
-        <p style="text-align:center; font-size:1.1em; margin:20px 0; white-space:pre-line;" id="gameOverStats"></p>
-        <button class="btn btn-roll" onclick="location.reload()" style="width:100%;">🔄 Почати знову</button>
-    </div>
-
+      <div class="tip">
+        <b>3 в ряд</b> запускає збіг. Усі дотичні плитки того ж кольору зникають разом з ним.
+        Невикористані ходи перетворюються на <b>золото</b>.
+      </div>
+    </aside>
+  </div>
 </div>
 
+<div class="banner" id="banner"></div>
+
+<div class="modal" id="helpModal">
+  <div class="panel">
+    <div class="eyebrow">3 правила · 30 секунд</div>
+    <h2>Як грати</h2>
+    <p><b>1. Міняй місцями дві сусідні плитки.</b> Клікни двічі або тягни одну на сусідню. Якщо збігу немає — хід не витрачається.</p>
+    <p><b>2. Потрібні 3 в ряд або стовпчик.</b> Тоді зникає вся дотична група цього кольору — навіть якщо вона виглядає як калюжа. Групи з 5+ плиток дають значно більше очок.</p>
+    <p><b>3. Набери ціль до кінця ходів.</b> Очки = плитки × множник. Каскади збільшують множник. Раунд завершується одразу при досягненні цілі — <b>кожен невитрачений хід = +4 золота</b>.</p>
+    <p><b>Кожний 5-й раунд — бос.</b> За перемогу дається 🔮 есенція. Витрать її в <b>Майстерні</b> на постійні покращення, що залишаються назавжди.</p>
+    <div class="btn-row"><button class="btn primary" id="helpClose">Зрозуміло →</button></div>
+  </div>
+</div>
+
+<div class="modal" id="shopModal"><div class="panel" id="shopPanel"></div></div>
+<div class="modal" id="replaceModal"><div class="panel" id="replacePanel"></div></div>
+<div class="modal" id="metaModal"><div class="panel" id="metaPanel"></div></div>
+<div class="modal" id="overModal"><div class="panel" id="overPanel"></div></div>
+
 <script>
-// ==================== ЗВУК (Web Audio API) ====================
-let audioCtx = null;
-let soundEnabled = true;
-let ambientOsc = null;
-let ambientGain = null;
+const N = 7;
+const COLORS = ['red','blue','green','yellow','purple'];
+const COLOR_NAME = {red:'червоний',blue:'синій',green:'зелений',yellow:'жовтий',purple:'фіолетовий'};
+const GLYPH = {red:'●',blue:'◆',green:'▲',yellow:'■',purple:'★'};
 
-function initAudio() {
-    if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-}
 
-function toggleSound() {
-    soundEnabled = !soundEnabled;
-    document.getElementById('soundToggle').innerText = soundEnabled ? '🔊' : '🔇';
-    if (!soundEnabled) stopAmbient();
-    else if (document.getElementById('battleScreen').classList.contains('active')) startAmbient();
-}
+const BASE_CHIPS   = 10;
+const BASE_MOVES   = 8;
+const BOSS_EXTRA   = 2;
+const BASE_REWARD  = 10;
+const MOVE_GOLD    = 5;
+const BOSS_GOLD    = 25;
+const MAX_ITEMS    = 3;
+const BASE_SLOTS   = 4;
 
-function playTone(freq, duration, type = 'sine', volume = 0.3, attack = 0.01, decay = 0.1) {
-    if (!soundEnabled) return;
-    initAudio();
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = type;
-    osc.frequency.value = freq;
-    gain.gain.setValueAtTime(0, audioCtx.currentTime);
-    gain.gain.linearRampToValueAtTime(volume, audioCtx.currentTime + attack);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start();
-    osc.stop(audioCtx.currentTime + duration);
-}
 
-function playNoise(duration, volume = 0.2) {
-    if (!soundEnabled) return;
-    initAudio();
-    const bufferSize = audioCtx.sampleRate * duration;
-    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
-    }
-    const source = audioCtx.createBufferSource();
-    const gain = audioCtx.createGain();
-    source.buffer = buffer;
-    gain.gain.value = volume;
-    source.connect(gain);
-    gain.connect(audioCtx.destination);
-    source.start();
-}
-
-const SFX = {
-    roll: () => {
-        playNoise(0.15, 0.15);
-        setTimeout(() => playTone(200, 0.1, 'square', 0.1), 50);
-        setTimeout(() => playTone(300, 0.1, 'square', 0.1), 100);
-    },
-    attack: () => {
-        playTone(150, 0.15, 'sawtooth', 0.25);
-        playNoise(0.1, 0.2);
-    },
-    block: () => {
-        playTone(800, 0.1, 'square', 0.2);
-        setTimeout(() => playTone(1200, 0.15, 'square', 0.15), 50);
-    },
-    heal: () => {
-        playTone(523, 0.15, 'sine', 0.2);
-        setTimeout(() => playTone(659, 0.15, 'sine', 0.2), 80);
-        setTimeout(() => playTone(784, 0.2, 'sine', 0.2), 160);
-    },
-    hit: () => {
-        playTone(80, 0.2, 'sawtooth', 0.3);
-        playNoise(0.15, 0.25);
-    },
-    gold: () => {
-        playTone(1047, 0.1, 'sine', 0.2);
-        setTimeout(() => playTone(1319, 0.15, 'sine', 0.2), 60);
-    },
-    buy: () => {
-        playTone(523, 0.08, 'sine', 0.2);
-        setTimeout(() => playTone(784, 0.08, 'sine', 0.2), 60);
-        setTimeout(() => playTone(1047, 0.15, 'sine', 0.2), 120);
-    },
-    victory: () => {
-        const notes = [523, 659, 784, 1047];
-        notes.forEach((n, i) => setTimeout(() => playTone(n, 0.3, 'sine', 0.25), i * 100));
-    },
-    defeat: () => {
-        const notes = [392, 330, 262, 196];
-        notes.forEach((n, i) => setTimeout(() => playTone(n, 0.4, 'sawtooth', 0.2), i * 150));
-    },
-    boss: () => {
-        playTone(80, 0.5, 'sawtooth', 0.3);
-        playTone(60, 0.8, 'sawtooth', 0.25);
-        setTimeout(() => playNoise(0.3, 0.2), 200);
-    },
-    click: () => {
-        playTone(600, 0.05, 'square', 0.15);
-    }
+const DIFFICULTY = {
+  baseTarget: 350,          // Очки для 1-го раунду
+  incrementPerRound: 200,   // На скільки зростає ціль кожен раунд
+  bossMultiplier: 1.5,      // Множник цілі для боса
+  postBossMultiplier: 1.3,  // НОВЕ: множник після кожного боса
 };
+const BOSS_RULES = ['stone','curse','both','fog','shuffle','freeze','mirror','chain_tax'];
+const $ = s => document.querySelector(s);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const rand = a => a[Math.floor(Math.random()*a.length)];
+const shuffleArr = a => { for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
+const key = (x,y) => y*N+x;
 
-function startAmbient() {
-    if (!soundEnabled || ambientOsc) return;
-    initAudio();
-    ambientOsc = audioCtx.createOscillator();
-    ambientGain = audioCtx.createGain();
-    ambientOsc.type = 'sine';
-    ambientOsc.frequency.value = 80;
-    ambientGain.gain.value = 0.04;
-    const lfo = audioCtx.createOscillator();
-    const lfoGain = audioCtx.createGain();
-    lfo.frequency.value = 0.2;
-    lfoGain.gain.value = 10;
-    lfo.connect(lfoGain);
-    lfoGain.connect(ambientOsc.frequency);
-    ambientOsc.connect(ambientGain);
-    ambientGain.connect(audioCtx.destination);
-    ambientOsc.start();
-    lfo.start();
-    ambientOsc._lfo = lfo;
+const META_KEY = 'kaskad-meta-v2';
+const defaultMeta = () => ({
+  essence:0,
+  up:{chips:0,moves:0,echo:0,gold:0,slots:0},
+  best:0, runs:0, bosses:0,
+  tutorial:false, sound:true
+});
+
+let meta = defaultMeta();
+try{
+  const raw = JSON.parse(localStorage.getItem(META_KEY));
+  if(raw) meta = {...defaultMeta(),...raw, up:{...defaultMeta().up,...(raw.up||{})}};
+}catch{}
+
+function saveMeta(){ try{localStorage.setItem(META_KEY,JSON.stringify(meta));}catch{} }
+
+let S = null;
+let epoch = 0;
+let busy = false;
+let selected = null;
+let aim = null;
+let cursor = {x:3,y:3};
+let keyboardMode = false;
+
+const slotCount = () => BASE_SLOTS + (meta.up.slots||0);
+const artSum = k => S.artifacts.reduce((n,a)=>n+(a.effect[k]||0),0);
+const hasBoss = t => !!S.boss && S.boss.type===t;
+
+let ac = null;
+function tone(f,d=.12,type='sine',v=.05,slide=0,delay=0){
+  if(!meta.sound) return;
+  try{
+    if(!ac) ac = new (window.AudioContext||window.webkitAudioContext)();
+    if(ac.state==='suspended') ac.resume();
+    const t=ac.currentTime+delay;
+    const o=ac.createOscillator(), g=ac.createGain();
+    o.type=type; o.frequency.setValueAtTime(f,t);
+    if(slide) o.frequency.exponentialRampToValueAtTime(Math.max(40,f+slide),t+d);
+    g.gain.setValueAtTime(.0001,t);
+    g.gain.exponentialRampToValueAtTime(v,t+.01);
+    g.gain.exponentialRampToValueAtTime(.0001,t+d);
+    o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t+d+.02);
+  }catch{}
+}
+function sfx(name,n=1){
+  if(name==='match'){ tone(330+n*70,.16,'sine',.055); tone(660+n*90,.2,'sine',.035,0,.06); }
+  if(name==='bad') tone(150,.14,'triangle',.04,-50);
+  if(name==='buy'){ tone(700,.1,'sine',.05); tone(1050,.15,'sine',.04,0,.08); }
+  if(name==='win') [523,659,784,1047].forEach((f,i)=>tone(f,.3,'sine',.06,0,i*.09));
+  if(name==='lose') [330,262,196].forEach((f,i)=>tone(f,.35,'triangle',.05,0,i*.12));
+  if(name==='essence') [880,1174,1568].forEach((f,i)=>tone(f,.4,'sine',.05,0,i*.1));
+  if(name==='click') tone(420,.05,'sine',.025);
 }
 
-function stopAmbient() {
-    if (ambientOsc) {
-        try {
-            ambientOsc._lfo.stop();
-            ambientOsc.stop();
-        } catch(e) {}
-        ambientOsc = null;
-        ambientGain = null;
+const ARTIFACTS = [
+  {id:'ruby',    icon:'🔴', name:'Рубін',        price:40,  desc:'+4 chips за кожну червону плитку', effect:{colorChips:{red:4}}, tag:'color'},
+  {id:'sapph',   icon:'🔵', name:'Сапфір',       price:40,  desc:'+4 chips за кожну синю плитку',   effect:{colorChips:{blue:4}}, tag:'color'},
+  {id:'emer',    icon:'🟢', name:'Смарагд',      price:40,  desc:'+4 chips за кожну зелену плитку', effect:{colorChips:{green:4}}, tag:'color'},
+  {id:'citrine', icon:'🟡', name:'Цитрин',       price:40,  desc:'+4 chips за кожну жовту плитку',  effect:{colorChips:{yellow:4}}, tag:'color'},
+  {id:'ameth',   icon:'🟣', name:'Аметист',      price:40,  desc:'+4 chips за кожну фіолетову',    effect:{colorChips:{purple:4}}, tag:'color'},
+  {id:'mirror',  icon:'🪞', name:'Дзеркало',     price:65,  desc:'+1 mult, якщо група з 5+ плиток', effect:{sizeMult:{min:5,add:1}}, tag:'size'},
+  {id:'chain',   icon:'⛓️', name:'Ланцюг',       price:70,  desc:'+0.5 mult за кожен каскад після першого', effect:{cascade:0.5}, tag:'cascade'},
+  {id:'echo',    icon:'🔔', name:'Ехо',          price:55,  desc:'+1x на першу хвилю кожного ходу', effect:{echo:1}, tag:'first'},
+  {id:'clock',   icon:'⏱️', name:'Годинник',     price:60,  desc:'+1 хід на початку кожного раунду', effect:{move:1}, tag:'economy'},
+  {id:'vault',   icon:'🏦', name:'Скарбничка',   price:50,  desc:'+6 золота за кожен пройдений раунд', effect:{gold:6}, tag:'economy'},
+  {id:'magnet',  icon:'🧲', name:'Магніт',       price:75,  desc:'+0.25 mult за кожну плитку групи понад 3', effect:{growth:0.25}, tag:'size'},
+  {id:'crown',   icon:'👑', name:'Корона',       price:110, desc:'×1.5 mult для груп з 7+ плиток', effect:{xMult:1.5,min:7}, tag:'size'},
+  {id:'prism',   icon:'🔷', name:'Призма',       price:95,  desc:'Кольорові бонуси подвоюються', effect:{colorMult:2}, tag:'color'},
+  {id:'hammer2', icon:'🔨', name:'Молот',        price:85,  desc:'+2 chips за кожну плитку в каскаді 2+', effect:{cascadeChips:2}, tag:'cascade'},
+  {id:'frost',   icon:'❄️', name:'Мороз',        price:80,  desc:'Прокляті плитки дають +50% очок', effect:{cursedBonus:0.5}, tag:'boss'},
+  {id:'sun',     icon:'☀️', name:'Сонце',        price:90,  desc:'+1 mult за кожні 3 невитрачені ходи', effect:{moveMult:1,per:3}, tag:'economy'},
+  {id:'gold_chips', icon:'💰', name:'Золотий стандарт', price:100, desc:'+1 chips за плитку за кожні 20 золота', effect:{goldToChips:20}, tag:'economy'},
+  {id:'gold_mult', icon:'👑', name:'Магнат', price:150, desc:'+1 mult за кожні 50 золота', effect:{goldToMult:50}, tag:'economy'},
+  {id:'exact3', icon:'🎯', name:'Снайпер', price:60, desc:'+2 mult, якщо група рівно 3 плитки', effect:{exact3:2}, tag:'size'},
+  {id:'stone_breaker', icon:'⛏️', name:'Кірка', price:70, desc:'+10 chips за кожну зруйновану кам`яну плитку', effect:{stoneChips:10}, tag:'boss'},
+  {id:'cascade_move', icon:'🔄', name:'Інерція', price:120, desc:'+1 хід, якщо каскад ≥ 3', effect:{cascadeMove:3}, tag:'cascade'},
+  {id:'blood_ruby', icon:'🩸', name:'Кривавий рубін', price:90, desc:'+0.05 mult за КОЖНЕ очищення 5+ червоних плиток у забігу', effect:{red5Mult:0.05}, tag:'color'},
+  {id:'deep_blue', icon:'🌊', name:'Лови хвилю', price:135, desc:'+0.01 mult за кожен каскад (2+ хвиля), зроблений у забігу', effect:{cascadeRunMult:0.01}, tag:'cascade'},
+  {id:'mastery', icon:'📜', name:'Алхімічна майстерність', price:110, desc:'+0.001 mult за кожен каскад зроблений у забігу', effect:{matchRunMult:0.001}, tag:'economy'},
+  {id:'golden_touch', icon:'✨', name:'Золотий дотик', price:150, desc:'+0.5 chips за кожен каскад)', effect:{cascadeChips:0.5}, tag:'cascade'}
+];
+
+const ITEMS = [
+  {id:'shuffle', icon:'🔀', name:'Перемішати', price:25, desc:'Повністю перемішує поле. Без витрати ходу.'},
+  {id:'hammer',  icon:'🔨', name:'Молот',      price:35, desc:'Знищує одну плитку та сусіднє каміння. Запускає каскад.'},
+  {id:'hourglass',icon:'⏳',name:'Пісочний час',price:45, desc:'+2 ходи до поточного раунду.'}
+];
+
+const META_UPGRADES = [
+  {id:'chips', icon:'🧮', name:'Точний розрахунок', desc:'+0.1 chips за плитку (до +1 на 10 рівні)', max:10, cost:l=>1+Math.floor(l/3)},
+  {id:'echo',  icon:'🔔', name:'Відлуння',          desc:'+0.05 mult на першу хвилю (до +0.5 на 10)', max:15, cost:l=>1+Math.floor(l/3)},
+  {id:'gold',  icon:'💰', name:'Гонорар',           desc:'+1 золота за раунд (до +10 на 10 рівні)', max:10, cost:l=>1+Math.floor(l/3)},
+  {id:'moves', icon:'👟', name:'Запас ходу',        desc:'+1 ходу (до +5 на 5 рівні)', max:3, cost:l=>10+Math.floor(l/2)},
+  {id:'slots', icon:'🎒', name:'Додатковий слот',       desc:'+1 слот для артефактів',  max:3, cost:l=>5+l*3}
+];
+
+function makeBoard(){
+  const g = Array.from({length:N},()=>Array(N).fill(null));
+  for(let y=0;y<N;y++){
+    for(let x=0;x<N;x++){
+      const banned = new Set();
+      if(x>=2 && g[y][x-1] && g[y][x-2] && g[y][x-1].color && g[y][x-1].color===g[y][x-2].color) banned.add(g[y][x-1].color);
+      if(y>=2 && g[y-1][x] && g[y-2][x] && g[y-1][x].color && g[y-1][x].color===g[y-2][x].color) banned.add(g[y-1][x].color);
+      const pool = COLORS.filter(c=>!banned.has(c));
+      g[y][x] = {color:rand(pool), fresh:false};
     }
+  }
+  return g;
 }
 
-// ==================== ВІЗУАЛЬНІ ЕФЕКТИ ====================
-function spawnFloatNum(value, type, targetEl) {
-    const layer = document.getElementById('fxLayer');
-    const rect = targetEl.getBoundingClientRect();
-    const gameRect = document.getElementById('gameContainer').getBoundingClientRect();
-    const num = document.createElement('div');
-    num.className = 'float-num ' + type;
-    num.innerText = (type === 'damage' ? '-' : '+') + value;
-    num.style.left = (rect.left - gameRect.left + rect.width/2 - 20 + (Math.random()*40-20)) + 'px';
-    num.style.top = (rect.top - gameRect.top + rect.height/2) + 'px';
-    layer.appendChild(num);
-    setTimeout(() => num.remove(), 1200);
+function newTile(){ return {color:rand(COLORS), fresh:true}; }
+
+function placeStones(){
+  const spots=[];
+  for(let y=1;y<N-1;y++) for(let x=1;x<N-1;x++) spots.push({x,y});
+  shuffleArr(spots).slice(0,4).forEach(p=>{ S.grid[p.y][p.x]={stone:true,color:null}; });
 }
 
-function spawnParticles(x, y, color, count = 8) {
-    const layer = document.getElementById('fxLayer');
-    for (let i = 0; i < count; i++) {
-        const p = document.createElement('div');
-        p.className = 'particle';
-        p.style.background = color;
-        p.style.left = x + 'px';
-        p.style.top = y + 'px';
-        const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
-        const dist = 40 + Math.random() * 40;
-        p.style.setProperty('--dx', Math.cos(angle) * dist + 'px');
-        p.style.setProperty('--dy', Math.sin(angle) * dist + 'px');
-        layer.appendChild(p);
-        setTimeout(() => p.remove(), 800);
+function hasPossibleMove(){
+  for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+    for(const [dx,dy] of [[1,0],[0,1]]){
+      const nx=x+dx, ny=y+dy;
+      if(nx>=N||ny>=N) continue;
+      const a=S.grid[y][x], b=S.grid[ny][nx];
+      if(!a||!b||a.stone||b.stone||a.color===b.color) continue;
+      S.grid[y][x]=b; S.grid[ny][nx]=a;
+      const ok=findMatches().length>0;
+      S.grid[y][x]=a; S.grid[ny][nx]=b;
+      if(ok) return true;
     }
+  }
+  return false;
 }
 
-function flash(type) {
-    const layer = document.getElementById('fxLayer');
-    const f = document.createElement('div');
-    f.className = 'flash ' + type;
-    layer.appendChild(f);
-    setTimeout(() => f.remove(), 400);
-}
-
-function screenShake() {
-    const game = document.getElementById('gameContainer');
-    game.classList.remove('shake');
-    void game.offsetWidth;
-    game.classList.add('shake');
-}
-
-function enemyHitFX(dmg, isCrit = false) {
-    const enemy = document.getElementById('enemyEmoji');
-    spawnFloatNum(dmg, isCrit ? 'crit' : 'damage', enemy);
-    const rect = enemy.getBoundingClientRect();
-    const gameRect = document.getElementById('gameContainer').getBoundingClientRect();
-    spawnParticles(rect.left - gameRect.left + rect.width/2, rect.top - gameRect.top + rect.height/2, '#ff5252', isCrit ? 16 : 8);
-    flash('hit');
-    if (isCrit) screenShake();
-    SFX.attack();
-}
-
-function playerHitFX(dmg) {
-    const hp = document.getElementById('playerHPText');
-    spawnFloatNum(dmg, 'damage', hp);
-    flash('hit');
-    screenShake();
-    SFX.hit();
-}
-
-function healFX(amount) {
-    const hp = document.getElementById('playerHPText');
-    spawnFloatNum(amount, 'heal', hp);
-    flash('heal');
-    SFX.heal();
-}
-
-function blockFX(amount) {
-    const hp = document.getElementById('playerHPText');
-    spawnFloatNum(amount, 'block', hp);
-    flash('block');
-    SFX.block();
-}
-
-function goldFX() {
-    const g = document.getElementById('goldDisplay');
-    flash('gold');
-    SFX.gold();
-}
-
-// ==================== ДАНІ ====================
-const DICE_TYPES = {
-    d6_atk:    { icon: '🎲', name: 'D6 Атака',     max: 6,  desc: 'Атака 1-6', action: 'attack', category: 'attack' },
-    d8_atk:    { icon: '🔷', name: 'D8 Атака',     max: 8,  desc: 'Атака 1-8', action: 'attack', category: 'attack' },
-    d10_atk:   { icon: '💎', name: 'D10 Атака',    max: 10, desc: 'Атака 1-10', action: 'attack', category: 'attack' },
-    d12_atk:   { icon: '⭐', name: 'D12 Атака',    max: 12, desc: 'Атака 1-12', action: 'attack', category: 'attack' },
-    d20_atk:   { icon: '🔶', name: 'D20 Атака',    max: 20, desc: 'Атака 1-20', action: 'attack', category: 'attack' },
-    d6_def:    { icon: '🛡️', name: 'D6 Блок',      max: 6,  desc: 'Блок 1-6', action: 'defend', category: 'defend' },
-    d8_def:    { icon: '🔷', name: 'D8 Блок',      max: 8,  desc: 'Блок 1-8', action: 'defend', category: 'defend' },
-    d6_heal:   { icon: '💚', name: 'D6 Лікування', max: 6,  desc: 'Лікування 1-6', action: 'heal', category: 'heal' },
-    d8_heal:   { icon: '💚', name: 'D8 Лікування', max: 8,  desc: 'Лікування 1-8', action: 'heal', category: 'heal' },
-    fire:      { icon: '🔥', name: 'Вогняний',     max: 8,  desc: 'Атака + підпал (3/хід)', action: 'attack', category: 'special', effect: 'burn' },
-    ice:       { icon: '❄️', name: 'Крижаний',     max: 8,  desc: 'Блок + заморожує', action: 'defend', category: 'special', effect: 'freeze' },
-    vamp:      { icon: '🧛', name: 'Вампір',       max: 8,  desc: 'Атака + краде HP', action: 'attack', category: 'special', effect: 'vamp' },
-    poison:    { icon: '☠️', name: 'Отрута',       max: 6,  desc: 'Атака + 5 отрути', action: 'attack', category: 'special', effect: 'poison' },
-    time:      { icon: '⏳', name: 'Кубик Часу',   max: 10, desc: 'Атака +1 енергія', action: 'attack', category: 'legendary', effect: 'time' },
-    lightning: { icon: '⚡', name: 'Блискавка',    max: 12, desc: 'Атака x2', action: 'attack', category: 'legendary', effect: 'lightning' },
-    chaos:     { icon: '🌪️', name: 'Хаос',         max: 20, desc: 'Атака: 50% x3, 50% -5 HP', action: 'attack', category: 'legendary', effect: 'chaos' },
-    star:      { icon: '🌟', name: 'Зірка',        max: 10, desc: 'Атака +5 наступному', action: 'attack', category: 'legendary', effect: 'star' },
-    death:     { icon: '💀', name: 'Смерть',       max: 8,  desc: 'Атака, вбивство = +10 HP', action: 'attack', category: 'legendary', effect: 'death' },
-    blood:     { icon: '🩸', name: 'Кривавий',     max: 12, desc: 'Атака, але -3 HP на початку бою', action: 'attack', category: 'cursed', effect: 'blood' },
-    spider:    { icon: '🕷️', name: 'Павук',        max: 10, desc: 'Атака, але 2 отрути собі/хід', action: 'attack', category: 'cursed', effect: 'spider' },
-    eye:       { icon: '👁️', name: 'Око',          max: 8,  desc: 'Блок, але -1 до інших кубиків', action: 'defend', category: 'cursed', effect: 'eye' },
-    bone:      { icon: '🦴', name: 'Кістка',       max: 10, desc: 'Лікування, але лікує ворога', action: 'heal', category: 'cursed', effect: 'bone' },
-    darkness:  { icon: '🌑', name: 'Темрява',      max: 20, desc: 'Атака, але 50% пропустити хід', action: 'attack', category: 'cursed', effect: 'darkness' }
-};
-
-const EQUIPMENT = {
-    sword:  { icon: '🗡️', name: 'Гострий меч',    desc: '+2 до кожної атаки',     price: 25 },
-    shield: { icon: '🛡️', name: 'Міцний щит',     desc: '+3 до блоку',            price: 20 },
-    amulet: { icon: '📿', name: 'Амулет життя',   desc: '+10 макс. HP',            price: 30 },
-    ring:   { icon: '💍', name: 'Кільце удачі',   desc: '+1 до всіх кидків',       price: 40 },
-    potion: { icon: '🧪', name: 'Зілля реген.',   desc: '+2 HP на початку ходу',  price: 35 }
-};
-
-const RELICS = {
-    horn:   { icon: '⚔️', name: 'Бойовий ріг',   desc: '+1 енергія за хід', price: 50 },
-    eagle:  { icon: '🎯', name: 'Око орла',      desc: '+1 енергія за хід', price: 75 }
-};
-
-const ENEMIES = ['👹','🧟','👻','🐉','👽','🦇','🕷️','🧙','💀'];
-
-const BOSSES = {
-    10: { emoji: '🐉', name: 'Дракон',   hp: 100, type: 'dragon' },
-    20: { emoji: '🌌', name: 'Хронос',   hp: 300, type: 'chronos' }
-};
-
-// ==================== СТАН ====================
-let state = {
-    hp: 30, maxHp: 30,
-    gold: 0,
-    room: 1,
-    block: 0,
-    deck: ['d6_atk','d6_atk','d6_def'],
-    discard: [],
-    hand: [],
-    equipment: [null, null, null],
-    relics: [],
-    energy: 3, maxEnergy: 3,
-    selected: -1,
-    turnActions: { attack: 0, defend: 0, heal: 0 },
-    starBonus: 0,
-    damageThisTurn: 0,
-    enemy: { hp: 20, maxHp: 20, burn: 0, poison: 0, frozen: false, isBoss: false, bossType: null, armor: 0, breathCooldown: 0, cursed: false, attackCooldown: 0, timeWarp: false },
-    rewardOffer: [],
-    chosenReward: null,
-    chosenRemove: null,
-    selfPoison: 0
-};
-
-// ==================== МЕНЮ ====================
-function showMenu() {
-    stopAmbient();
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById('menuScreen').classList.add('active');
-}
-
-function showTutorial() {
-    SFX.click();
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById('tutorialScreen').classList.add('active');
-}
-
-function startGame() {
-    initAudio();
-    SFX.click();
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    startBattle();
-}
-
-// ==================== МІШОК ====================
-function resetBag() {
-    state.hand.forEach(d => state.discard.push(d.type));
-    state.hand = [];
-    state.deck = state.deck.concat(state.discard);
-    state.discard = [];
-    shuffle(state.deck);
-}
-
-function shuffle(arr) {
-    for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
+function renderBoard(){
+  const g=$('#grid');
+  g.innerHTML='';
+  for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+    const t=S.grid[y]?.[x];
+    const el=document.createElement('div');
+    el.className='cell';
+    el.dataset.x=x; el.dataset.y=y;
+    if(t){
+      if(t.stone){
+        el.classList.add('stone');
+        el.textContent='▩';
+        el.title='Каміння: руйнується, якщо збіг поруч';
+      }else if(t.fog){
+        el.classList.add('fog');
+        el.textContent='?';
+        el.style.background='#1a233a';
+        el.style.color='rgba(255,255,255,0.2)';
+        el.title='Прихована плитка';
+      }else{
+        el.classList.add(t.color);
+        el.textContent=GLYPH[t.color];
+        el.title=COLOR_NAME[t.color];
+        if(hasBoss('curse') && S.boss.cursed===t.color) el.classList.add('cursed');
+        if(t.frozen) el.classList.add('frozen');
+      }
+      if(t.fresh){ el.classList.add('falling'); t.fresh=false; }
+      if(selected && selected.x===x && selected.y===y) el.classList.add('selected');
+      if(keyboardMode && cursor.x===x && cursor.y===y) el.classList.add('cursor');
+    }else{
+      el.style.background='transparent';
+      el.style.boxShadow='none';
     }
-    return arr;
+    g.appendChild(el);
+  }
 }
 
-// ==================== UI ====================
-function showScreen(id) {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
+function shuffleBoard(auto=false){
+  const stones=[];
+  for(let y=0;y<N;y++) for(let x=0;x<N;x++) if(S.grid[y][x]?.stone) stones.push({x,y});
+  for(let i=0;i<40;i++){
+    S.grid=makeBoard();
+    stones.forEach(p=>S.grid[p.y][p.x]={stone:true,color:null});
+    if(hasPossibleMove()) break;
+  }
+  selected=null;
+  renderBoard();
+  toast(auto?'Немає ходів — поле перемішано безкоштовно':'Поле перемішано');
+  tone(300,.15,'sine',.04,150);
 }
 
-function updateUI() {
-    document.getElementById('playerHPFill').style.width = (state.hp/state.maxHp*100)+'%';
-    document.getElementById('playerHPText').innerText = state.hp+'/'+state.maxHp;
-    document.getElementById('enemyHPFill').style.width = Math.max(0,(state.enemy.hp/state.enemy.maxHp*100))+'%';
-    document.getElementById('enemyHPText').innerText = Math.max(0,state.enemy.hp)+'/'+state.enemy.maxHp;
-    document.getElementById('roomLabel').innerText = 'Кімната ' + state.room;
-    document.getElementById('goldDisplay').innerText = '💰 '+state.gold;
-    document.getElementById('energyDisplay').innerText = '⚡ '+state.energy+'/'+state.maxEnergy;
-    document.getElementById('deckCount').innerText = state.deck.length;
-    document.getElementById('handCount').innerText = state.hand.length;
-    document.getElementById('discardCount').innerText = state.discard.length;
-
-    const es = [];
-    if (state.enemy.isBoss) {
-        if (state.enemy.bossType === 'dragon' && state.enemy.breathCooldown === 1) es.push('<span class="warning">🔥 Подих наступний хід!</span>');
-        if (state.enemy.bossType === 'dragon') es.push('🛡️ Луска: '+state.enemy.armor);
-        if (state.enemy.bossType === 'chronos' && state.enemy.timeWarp) es.push('<span class="warning">⏳ Час викривлено!</span>');
+function findMatches(){
+  const seen = new Set();
+  const groups = [];
+  for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+    const start=S.grid[y][x];
+    if(!start || start.stone || seen.has(key(x,y))) continue;
+    const color=start.color;
+    const stack=[{x,y}], group=[];
+    while(stack.length){
+      const p=stack.pop();
+      if(p.x<0||p.x>=N||p.y<0||p.y>=N) continue;
+      const k=key(p.x,p.y);
+      if(seen.has(k)) continue;
+      const t=S.grid[p.y][p.x];
+      if(!t||t.stone||t.color!==color) continue;
+      seen.add(k); group.push(p);
+      stack.push({x:p.x+1,y:p.y},{x:p.x-1,y:p.y},{x:p.x,y:p.y+1},{x:p.x,y:p.y-1});
     }
-    if (state.enemy.burn > 0) es.push('🔥'+state.enemy.burn);
-    if (state.enemy.poison > 0) es.push('☠️'+state.enemy.poison);
-    if (state.enemy.frozen) es.push('❄️Замор.');
-    document.getElementById('enemyStatus').innerHTML = es.join(' ');
-    renderInventory();
+    const set=new Set(group.map(p=>key(p.x,p.y)));
+    let line=false;
+    for(const p of group){
+      if(p.x+2<N && set.has(key(p.x+1,p.y)) && set.has(key(p.x+2,p.y))) {line=true;break;}
+      if(p.y+2<N && set.has(key(p.x,p.y+1)) && set.has(key(p.x,p.y+2))) {line=true;break;}
+    }
+    if(line) groups.push(group);
+  }
+  return groups;
 }
 
-function renderInventory() {
-    const inv = document.getElementById('inventory');
-    inv.innerHTML = '';
-    state.equipment.forEach((eq) => {
-        const slot = document.createElement('div');
-        slot.className = 'inv-slot' + (eq ? ' filled' : '');
-        if (eq) slot.innerHTML = EQUIPMENT[eq].icon + `<div class="tooltip">${EQUIPMENT[eq].name}: ${EQUIPMENT[eq].desc}</div>`;
-        else slot.innerHTML = '·';
-        inv.appendChild(slot);
-    });
-    state.relics.forEach((rel) => {
-        const slot = document.createElement('div');
-        slot.className = 'inv-slot filled';
-        slot.innerHTML = RELICS[rel].icon + `<div class="tooltip">${RELICS[rel].name}: ${RELICS[rel].desc}</div>`;
-        inv.appendChild(slot);
-    });
+function swapModel(a,b){
+  const t=S.grid[a.y][a.x];
+  S.grid[a.y][a.x]=S.grid[b.y][b.x];
+  S.grid[b.y][b.x]=t;
 }
 
-function renderHand() {
-    const zone = document.getElementById('diceZone');
-    zone.innerHTML = '';
-    state.hand.forEach((d, i) => {
-        const el = document.createElement('div');
-        const t = DICE_TYPES[d.type];
-        const disabled = state.energy <= 0 || d.used;
-        el.className = 'die ' + t.category + (d.used ? ' used' : '') + (disabled && !d.used ? ' disabled' : '') + (t.category === 'legendary' ? ' legendary' : '') + (t.category === 'cursed' ? ' cursed' : '');
-        el.innerHTML = `<div class="die-icon">${t.icon}</div><div class="die-val">${d.value}</div>`;
-        if (!disabled) el.onclick = () => playDie(i);
-        zone.appendChild(el);
-    });
+function canSwap(x,y){
+  const t=S.grid[y][x];
+  if(!t || t.stone || t.frozen || t.fog) return false;
+  return true;
 }
 
-function log(msg) { document.getElementById('log').innerText = msg; }
-
-function animateEnemy(cls) {
-    const e = document.getElementById('enemyEmoji');
-    e.classList.remove('shake','dead');
-    void e.offsetWidth;
-    e.classList.add(cls);
+async function trySwap(a,b){
+  if(busy||!S) return;
+  if(!canSwap(a.x,a.y)||!canSwap(b.x,b.y)){
+    toast('Не можна міняти з цією плиткою');
+    return;
+  }
+  const ep=epoch;
+  busy=true; selected=null; aim=null;
+  $('#stage').classList.remove('aiming');
+  await animateSwap(a,b);
+  if(ep!==epoch) return;
+  swapModel(a,b);
+  renderBoard();
+  const matches=findMatches();
+  if(!matches.length){
+    await sleep(70);
+    if(ep!==epoch) return;
+    await animateSwap(a,b);
+    if(ep!==epoch) return;
+    swapModel(a,b);
+    renderBoard();
+    busy=false;
+    sfx('bad');
+    toast('Немає збігу — хід не витрачено');
+    return;
+  }
+  S.moves--;
+  applyBossEffects();
+  updateHUD();
+  await resolve(matches);
 }
 
-function animateGold() {
-    const g = document.getElementById('goldDisplay');
-    g.classList.remove('gold-bounce');
-    void g.offsetWidth;
-    g.classList.add('gold-bounce');
+async function resolve(initialGroups){
+  const ep=epoch;
+  let chain=0;
+  let groups=initialGroups;
+  while(groups.length && chain<25){
+    chain++;
+    S.bestChain=Math.max(S.bestChain,chain);
+    const remove=new Set();
+    const stones=new Set();
+    let total=0, biggest=0;
+    for(const g of groups){
+      const sc=scoreGroup(g,chain);
+      total+=sc.total;
+      biggest=Math.max(biggest,g.length);
+      S.groups++;
+      S.bestGroup=Math.max(S.bestGroup,g.length);
+      S.lastHand=sc;
+      const cx=Math.round(g.reduce((s,p)=>s+p.x,0)/g.length);
+      const cy=Math.round(g.reduce((s,p)=>s+p.y,0)/g.length);
+      const r=cellRect(cx,cy);
+      if(r) floatNumber(r.x,r.y,sc.total,`${sc.chips} × ${sc.mult}`);
+      g.forEach(p=>remove.add(key(p.x,p.y)));
+    }
+    for(const k of remove){
+      const x=k%N, y=Math.floor(k/N);
+      for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+        const nx=x+dx, ny=y+dy;
+        if(nx<0||nx>=N||ny<0||ny>=N) continue;
+        if(S.grid[ny][nx]?.stone) stones.add(key(nx,ny));
+      }
+    }
+    for(const k of remove){
+      const el=cellByKey(k);
+      if(el){ el.classList.add('removing'); burst(el, S.grid[Math.floor(k/N)][k%N]?.color); }
+    }
+    for(const k of stones) cellByKey(k)?.classList.add('breaking');
+    S.score+=total;
+    sfx('match',chain);
+    if(chain>1) showBanner(`КАСКАД ×${chain}`, chain);
+    else if(biggest>=6) showBanner(`ГРУПА ×${biggest}`, 1);
+    else if(biggest>=5) showBanner('ЧУДОВО!', 1);
+    updateHUD();
+    await sleep(300);
+    if(ep!==epoch) return;
+    for(const k of remove) S.grid[Math.floor(k/N)][k%N]=null;
+    for(const k of stones) S.grid[Math.floor(k/N)][k%N]=null;
+    applyGravity();
+    renderBoard();
+    updateHUD();
+    await sleep(330);
+    if(ep!==epoch) return;
+    groups=findMatches();
+  }
+  busy=false;
+  if(S.score>=S.target){ winRound(); return; }
+  if(S.moves<=0){ loseRound(); return; }
+  if(!hasPossibleMove()) shuffleBoard(true);
+  renderBoard();
 }
 
-// ==================== ТЯГУВАННЯ ====================
-function drawHand() {
-    SFX.roll();
-    if (state.equipment.includes('potion')) {
-        state.hp = Math.min(state.maxHp, state.hp + 2);
+function applyGravity(){
+  for(let x=0;x<N;x++){
+    const col=[];
+    for(let y=N-1;y>=0;y--) if(S.grid[y][x]) col.push({tile:S.grid[y][x],from:y});
+    for(let y=N-1;y>=0;y--){
+      const i=N-1-y;
+      if(i<col.length){
+        const t=col[i].tile;
+        t.fresh = col[i].from!==y;
+        S.grid[y][x]=t;
+      }else{
+        S.grid[y][x]=newTile();
+      }
     }
-    const drawCount = 5;
-
-    if (state.deck.length < drawCount) {
-        state.deck = state.deck.concat(state.discard);
-        state.discard = [];
-        shuffle(state.deck);
-        log('🔄 Мішок перемішано!');
-    }
-
-    const toDraw = Math.min(drawCount, state.deck.length);
-    for (let i = 0; i < toDraw; i++) {
-        const type = state.deck.pop();
-        let v = Math.ceil(Math.random() * DICE_TYPES[type].max);
-        if (state.equipment.includes('ring')) v += 1;
-        state.hand.push({ type, value: v, used: false });
-    }
-
-    state.selected = -1;
-    state.turnActions = { attack: 0, defend: 0, heal: 0 };
-    state.starBonus = 0;
-    state.damageThisTurn = 0;
-    renderHand();
-    document.querySelectorAll('.die').forEach(d => d.classList.add('rolling'));
-    setTimeout(() => document.querySelectorAll('.die').forEach(d => d.classList.remove('rolling')), 600);
-    document.getElementById('rollBtn').disabled = true;
-    document.getElementById('endBtn').disabled = false;
-    updateUI();
-    log(`Рука готова (${toDraw} кубиків). Грайте кубики!`);
+  }
 }
 
-// ==================== ГРАТИ КУБИК ====================
-function playDie(index) {
-    if (state.energy <= 0) return;
-    SFX.click();
-    const d = state.hand[index];
-    if (d.used) return;
-    d.used = true;
-    state.energy--;
-
-    let val = d.value;
-    const type = d.type;
-    const t = DICE_TYPES[type];
-
-    if (state.hand.some(h => h.type === 'eye' && h.used && h !== d)) {
-        val = Math.max(1, val - 1);
-    }
-
-    if (state.starBonus > 0 && t.action === 'attack') {
-        val += state.starBonus;
-        state.starBonus = 0;
-    }
-
-    if (t.effect === 'burn') state.enemy.burn += 3;
-    if (t.effect === 'freeze') state.enemy.frozen = true;
-    if (t.effect === 'vamp') {
-        const stolen = Math.floor(val/2);
-        state.hp = Math.min(state.maxHp, state.hp + stolen);
-        healFX(stolen);
-    }
-    if (t.effect === 'poison') state.enemy.poison += 5;
-    if (t.effect === 'lightning') val *= 2;
-    if (t.effect === 'chaos') {
-        if (Math.random() < 0.5) { val *= 3; log('🌪️ Хаос: ПОТРІЙНА ШКОДА!'); }
-        else { state.hp -= 5; log('🌪️ Хаос: -5 HP собі...'); }
-    }
-    if (t.effect === 'star') state.starBonus = 5;
-    if (t.effect === 'time') { state.energy += 1; log('⏳ Час: +1 енергія!'); }
-    if (t.effect === 'bone') state.enemy.hp = Math.min(state.enemy.maxHp, state.enemy.hp + Math.floor(val/2));
-
-    if (t.action === 'attack') {
-        let atk = val;
-        if (state.equipment.includes('sword')) atk += 2;
-        if (state.enemy.armor > 0) atk = Math.max(0, atk - state.enemy.armor);
-        state.enemy.hp -= atk;
-        state.turnActions.attack += atk;
-        state.damageThisTurn += atk;
-        if (atk > 0) {
-            animateEnemy('shake');
-            const isCrit = val >= DICE_TYPES[type].max * 0.8;
-            enemyHitFX(atk, isCrit);
-        }
-    } else if (t.action === 'defend') {
-        let def = val;
-        if (state.equipment.includes('shield')) def += 3;
-        state.block += def;
-        state.turnActions.defend += def;
-        blockFX(def);
-    } else if (t.action === 'heal') {
-        state.hp = Math.min(state.maxHp, state.hp + val);
-        state.turnActions.heal += val;
-        healFX(val);
-    }
-
-    state.discard.push(type);
-    state.hand.splice(index, 1);
-    renderHand();
-    updateUI();
-
-    if (state.enemy.hp <= 0) { victory(); return; }
-    if (state.energy <= 0) log('Енергія закінчилась. Завершуйте хід!');
+async function useHammer(x,y){
+  if(busy||!S) return;
+  const ep=epoch;
+  busy=true; aim=null;
+  $('#stage').classList.remove('aiming');
+  S.items.splice(S.items.findIndex(i=>i.id==='hammer'),1);
+  const remove=new Set([key(x,y)]);
+  for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+    const nx=x+dx,ny=y+dy;
+    if(nx>=0&&nx<N&&ny>=0&&ny<N&&S.grid[ny][nx]?.stone) remove.add(key(nx,ny));
+  }
+  for(const k of remove){
+    const el=cellByKey(k);
+    if(el){el.classList.add('removing');burst(el,'gold');}
+  }
+  sfx('match',1);
+  updateHUD();
+  await sleep(280);
+  if(ep!==epoch) return;
+  for(const k of remove) S.grid[Math.floor(k/N)][k%N]=null;
+  applyGravity(); renderBoard();
+  await sleep(320);
+  if(ep!==epoch) return;
+  await resolve(findMatches());
 }
 
-// ==================== БОЙ ====================
-function startBattle() {
-    resetBag();
-
-    const isBoss = state.room % 10 === 0;
-    const isFinal = state.room === 20;
-    state.block = 0;
-    state.selected = -1;
-    state.energy = state.maxEnergy;
-    state.selfPoison = 0;
-
-    if (state.deck.some(d => d === 'blood') || state.discard.some(d => d === 'blood')) {
-        state.hp -= 3;
-        log('🩸 Кривавий кубик: -3 HP на початку бою');
+function scoreGroup(group,chain){
+  const size=group.length;
+  const color=S.grid[group[0].y][group[0].x].color;
+  const counts={};
+  if(color === 'red' && size >= 5) S.red5Count++;
+  if(chain > 1) S.totalCascades++;
+  S.totalMatches++;
+  group.forEach(p=>{ const c=S.grid[p.y][p.x].color; counts[c]=(counts[c]||0)+1; });
+  let chips=(BASE_CHIPS+(meta.up.chips||0)*0.1)*size;
+  let mult=1+(size-3)*0.5;
+  const colorMult = artSum('colorMult') || 1;
+  for(const a of S.artifacts){
+    const e=a.effect;
+    if(e.red5Mult) mult += e.red5Mult * S.red5Count;
+    if(e.cascadeRunMult) mult += e.cascadeRunMult * S.totalCascades;
+    if(e.matchRunMult) mult += e.matchRunMult * S.totalMatches;
+    if(e.chips) chips+=e.chips;
+    if(e.colorChips) for(const [c,v] of Object.entries(e.colorChips)) chips+=(counts[c]||0)*v*colorMult;
+    if(e.mult) mult+=e.mult;
+    if(e.sizeMult && size>=e.sizeMult.min) mult+=e.sizeMult.add;
+    if(e.growth) mult+=e.growth*Math.max(0,size-3);
+    if(e.cascade && chain>1) mult+=e.cascade*(chain-1);
+    if(e.echo && chain===1) mult+=e.echo;
+    if(e.xMult && size>=(e.min||7)) mult*=e.xMult;
+    if(e.cascadeChips && chain>1) chips+=e.cascadeChips*size;
+    if(e.cursedBonus && hasBoss('curse') && S.boss.cursed===color) mult*=(1+e.cursedBonus);
+    if(e.goldToChips) chips += Math.floor(S.gold / e.goldToChips) * size;
+    if(e.goldToMult) mult += Math.floor(S.gold / e.goldToMult);
+    if(e.exact3 && size === 3) mult += e.exact3;
+    if(e.stoneChips) {
+      if(chain > 1) chips += e.stoneChips; 
     }
-    if (state.deck.some(d => d === 'spider') || state.discard.some(d => d === 'spider')) {
-        state.selfPoison = 2;
+    if(e.moveMult && e.per){
+      const movesUsed=S.maxMoves-S.moves;
+      const bonus=Math.floor(movesUsed/e.per);
+      mult+=e.moveMult*bonus;
     }
-
-    if (isFinal) {
-        state.enemy.maxHp = 300;
-        state.enemy.hp = 300;
-        state.enemy.isBoss = true;
-        state.enemy.bossType = 'chronos';
-        state.enemy.armor = 0;
-        state.enemy.timeWarp = false;
-        document.getElementById('enemyEmoji').innerText = '🌌';
-        document.getElementById('bossLabel').style.display = 'none';
-        document.getElementById('finalLabel').style.display = 'inline';
-        document.getElementById('enemyZone').classList.add('final');
-        document.getElementById('enemyZone').classList.remove('boss');
-        SFX.boss();
-        screenShake();
-    } else if (isBoss) {
-        const boss = BOSSES[10];
-        state.enemy.maxHp = boss.hp;
-        state.enemy.hp = boss.hp;
-        state.enemy.isBoss = true;
-        state.enemy.bossType = boss.type;
-        state.enemy.armor = boss.type === 'dragon' ? 5 : 0;
-        state.enemy.breathCooldown = 3;
-        document.getElementById('enemyEmoji').innerText = boss.emoji;
-        document.getElementById('bossLabel').style.display = 'inline';
-        document.getElementById('finalLabel').style.display = 'none';
-        document.getElementById('enemyZone').classList.add('boss');
-        document.getElementById('enemyZone').classList.remove('final');
-        SFX.boss();
-        screenShake();
-    } else {
-        state.enemy.maxHp = 15 + state.room * 5;
-        state.enemy.hp = state.enemy.maxHp;
-        state.enemy.isBoss = false;
-        state.enemy.bossType = null;
-        state.enemy.armor = 0;
-        document.getElementById('enemyEmoji').innerText = ENEMIES[(state.room-1) % ENEMIES.length];
-        document.getElementById('bossLabel').style.display = 'none';
-        document.getElementById('finalLabel').style.display = 'none';
-        document.getElementById('enemyZone').classList.remove('boss', 'final');
-    }
-    state.enemy.burn = 0;
-    state.enemy.poison = 0;
-    state.enemy.frozen = false;
-
-    document.getElementById('rollBtn').disabled = false;
-    document.getElementById('endBtn').disabled = true;
-    updateUI();
-    renderHand();
-    showScreen('battleScreen');
-    startAmbient();
-    log(isFinal ? '🌌 ФІНАЛЬНИЙ БОС: ХРОНОС!' : isBoss ? `⚠️ БОС: ${BOSSES[10].name}!` : `Кімната ${state.room}. Мішок перемішано!`);
+  }
+  if(chain===1) mult+=(meta.up.echo||0)*0.05;
+  if(chain>1) mult+=0.25*(chain-1);
+  if(hasBoss('curse') && S.boss.cursed===color) mult*=0.5;
+  if(hasBoss('chain_tax') && chain>1) mult*=0.7;
+  mult=Math.round(mult*100)/100;
+  const total=Math.round(chips*mult);
+  return {chips,mult,total,size,color,chain};
 }
 
-function endTurn() {
-    SFX.click();
-    if (state.selfPoison > 0) {
-        state.hp -= state.selfPoison;
-        log(`🕷️ Павук: -${state.selfPoison} HP отрути`);
-    }
-
-    if (state.hp <= 0) { gameOver(); return; }
-
-    if (state.enemy.burn > 0) state.enemy.hp -= state.enemy.burn;
-    if (state.enemy.poison > 0) {
-        state.enemy.hp -= state.enemy.poison;
-        state.enemy.poison = Math.max(0, state.enemy.poison - 1);
-    }
-    if (state.enemy.hp <= 0) { victory(); return; }
-
-    let enemyDmg = 0;
-    let enemyAction = '';
-
-    if (state.enemy.isBoss) {
-        if (state.enemy.bossType === 'dragon') {
-            state.enemy.breathCooldown--;
-            if (state.enemy.breathCooldown <= 0) {
-                enemyDmg = 20;
-                enemyAction = '🔥 Вогняний подих!';
-                state.enemy.breathCooldown = 3;
-            } else {
-                enemyDmg = 8 + Math.floor(state.room / 5);
-                enemyAction = 'Укус';
-            }
-        } else if (state.enemy.bossType === 'chronos') {
-            if (Math.random() < 0.3) {
-                state.enemy.timeWarp = true;
-                enemyAction = '⏳ Викривлення часу!';
-                enemyDmg = 10;
-            } else {
-                enemyDmg = 15 + Math.floor(Math.random() * 10);
-                enemyAction = 'Часова атака';
-            }
-        }
-    } else {
-        if (!state.enemy.frozen) {
-            enemyDmg = 3 + Math.floor(state.room / 2) + Math.floor(Math.random() * 4);
-        } else {
-            enemyAction = '❄️ Заморожений!';
-            state.enemy.frozen = false;
-        }
-    }
-
-    if (enemyDmg > 0) {
-        const blocked = Math.min(state.block, enemyDmg);
-        const taken = enemyDmg - blocked;
-        state.hp -= taken;
-        state.block = 0;
-        if (taken > 0) playerHitFX(taken);
-        log(`${enemyAction} ${enemyDmg} шкоди. Блок: ${blocked}. Ви втратили ${taken} HP.`);
-    } else if (enemyAction) {
-        log(enemyAction);
-        state.block = 0;
-    }
-
-    if (state.hp <= 0) { gameOver(); return; }
-
-    state.hand.forEach(d => state.discard.push(d.type));
-    state.hand = [];
-
-    if (state.deck.some(d => d === 'darkness') || state.discard.some(d => d === 'darkness')) {
-        if (Math.random() < 0.5) {
-            log('🌑 Темрява: ви пропускаєте хід!');
-            state.hand.forEach(d => state.discard.push(d.type));
-            state.hand = [];
-            state.energy = state.maxEnergy;
-            updateUI();
-            renderHand();
-            return;
-        }
-    }
-
-    state.energy = state.maxEnergy;
-    document.getElementById('rollBtn').disabled = false;
-    document.getElementById('endBtn').disabled = true;
-    updateUI();
-    renderHand();
+function startRound(){
+  epoch++;
+  busy=false; selected=null; aim=null;
+  $('#stage').classList.remove('aiming');
+  const isBoss = S.round%5===0;
+  const bossesCompleted = Math.floor((S.round - 1) / 5);
+  const bossDifficultyMultiplier = Math.pow(DIFFICULTY.postBossMultiplier, bossesCompleted);
+  S.boss = isBoss ? { type:BOSS_RULES[(Math.floor(S.round/5)-1)%BOSS_RULES.length], cursed:rand(COLORS) } : null;
+  S.maxMoves = BASE_MOVES + (isBoss?BOSS_EXTRA:0) + Math.floor(meta.up.moves*1) + artSum('move');
+  S.moves = S.maxMoves;
+  S.score = 0;
+  S.target = Math.round(
+    (DIFFICULTY.baseTarget + (S.round - 1) * DIFFICULTY.incrementPerRound) * 
+    (isBoss ? DIFFICULTY.bossMultiplier : 1) * 
+    bossDifficultyMultiplier
+  );
+  S.lastHand=null;
+  S.grid=makeBoard();
+  if(hasBoss('fog')) {
+    const tiles=[];
+    for(let y=0;y<N;y++) for(let x=0;x<N;x++) if(S.grid[y][x] && !S.grid[y][x].stone) tiles.push({x,y});
+    shuffleArr(tiles).slice(0, 7).forEach(p => S.grid[p.y][p.x].fog = true);
+  }
+  if(hasBoss('mirror')) {
+    S.grid.forEach(row => row.reverse());
+  }
+  if(hasBoss('stone')||hasBoss('both')) placeStones();
+  let guard=0;
+  while(!hasPossibleMove() && guard++<40) S.grid=makeBoard();
+  if((hasBoss('stone')||hasBoss('both')) && !hasPossibleMove()) shuffleBoard(false);
+  renderBoard();
+  updateHUD();
 }
 
-function victory() {
-    animateEnemy('dead');
-    state.hand.forEach(d => state.discard.push(d.type));
-    state.hand = [];
-
-    if (state.discard.includes('death')) {
-        state.hp = Math.min(state.maxHp, state.hp + 10);
-        log('💀 Смерть забирає життя ворога! +10 HP');
-        healFX(10);
-    }
-
-    const reward = state.enemy.isBoss ? 50 + state.room : 10 + state.room * 2;
-    state.gold += reward;
-    animateGold();
-    goldFX();
-    resetBag();
-
-    if (state.room === 20) {
-        SFX.victory();
-        setTimeout(() => showVictoryScreen(), 900);
-    } else {
-        SFX.victory();
-        setTimeout(() => showReward(reward), 900);
-    }
+function newRun(){
+  epoch++;
+  busy=false; selected=null; aim=null;
+  ['shopModal','replaceModal','metaModal','overModal','helpModal'].forEach(id=>$('#'+id).classList.remove('show'));
+  $('#stage').classList.remove('aiming');
+  S={ round:1, moves:BASE_MOVES, maxMoves:BASE_MOVES, score:0, target:350, gold:0, grid:[], artifacts:[], items:[], boss:null, groups:0, bestGroup:0, bestChain:0, totalScore:0, essenceEarned:0, lastHand:null, lastReward:null, offers:[], offersItems:[], rerolled:false, 
+    red5Count: 0,
+    totalCascades: 0,
+    totalMatches: 0};
+  meta.runs++; saveMeta();
+  startRound();
 }
 
-function showVictoryScreen() {
-    stopAmbient();
-    document.getElementById('victoryStats').innerText = `Кімнат пройдено: ${state.room}\nЗібрано золота: ${state.gold}\nРозмір колоди: ${state.deck.length}`;
-    showScreen('victoryScreen');
+function winRound(){
+  busy=true;
+  const left=S.moves;
+  const isBoss=S.round%5===0;
+  const base=BASE_REWARD;
+  const moveBonus=left*MOVE_GOLD;
+  const extra=artSum('gold')+(meta.up.gold||0);
+  const bossBonus=isBoss?BOSS_GOLD:0;
+  const reward=base+moveBonus+extra+bossBonus;
+  S.gold+=reward;
+  S.totalScore+=S.score;
+  let essence=0;
+  if(isBoss){
+    essence=(S.round%10===0)?2:1;
+    meta.essence+=essence;
+    meta.bosses++;
+    S.essenceEarned+=essence;
+  }
+  meta.best=Math.max(meta.best,S.round);
+  saveMeta();
+  S.lastReward={base,moveBonus,extra,bossBonus,reward,left,essence,isBoss};
+  updateHUD();
+  sfx('win');
+  if(essence) setTimeout(()=>sfx('essence'),450);
+  busy=false;
+  openShop();
 }
 
-// ==================== НАГОРОДА ====================
-function showReward(goldAmount) {
-    stopAmbient();
-    document.getElementById('rewardGold').innerText = `+${goldAmount} 💰`;
-    state.chosenReward = null;
-    state.chosenRemove = null;
-    generateRewardOffer();
-    switchTab('add', document.querySelector('.reward-tabs .tab'));
-    showScreen('rewardScreen');
+function loseRound(){
+  saveLeaderboard(S.totalScore, S.round);
+  busy=true;
+  S.totalScore+=S.score;
+  meta.best=Math.max(meta.best,S.round-1);
+  saveMeta();
+  sfx('lose');
+  $('#overPanel').innerHTML=`
+    <div class="eyebrow">Забіг завершено</div>
+    <h2>Каскад обірвався</h2>
+    <p>Раунд <b>${S.round}</b> виявився сильнішим. Але есенція залишається з тобою — наступного разу ти будеш трохи потужнішим.</p>
+    <div class="meta-stats">
+      <div>Раунд<b>${S.round}</b></div>
+      <div>Очки за забіг<b>${S.totalScore}</b></div>
+      <div>Найбільша група<b>${S.bestGroup}</b></div>
+      <div>Найдовший каскад<b>×${S.bestChain}</b></div>
+      <div>🔮 Зараз<b>${meta.essence}</b></div>
+    </div>
+    <p style="margin-top:18px">Порада: <b>великі групи вигідніші за маленькі.</b> Група з 7 плиток дає не просто більше очок — вона має вищий множник.</p>
+    <div class="btn-row">
+      <button class="btn primary" id="overRestart">Новий забіг ↺</button>
+      <button class="btn" id="overMeta">🔮 Майстерня</button>
+    </div>`;
+  $('#overRestart').onclick=()=>newRun();
+  $('#overMeta').onclick=()=>openMeta();
+  openModal('overModal');
 }
 
-function generateRewardOffer() {
-    const pool = Object.keys(DICE_TYPES);
-    const offer = [];
-    for (let i = 0; i < 3; i++) {
-        let type;
-        const roll = Math.random();
-        if (roll < 0.15) {
-            const legendaries = pool.filter(k => DICE_TYPES[k].category === 'legendary');
-            type = legendaries[Math.floor(Math.random()*legendaries.length)];
-        } else if (roll < 0.3) {
-            const cursed = pool.filter(k => DICE_TYPES[k].category === 'cursed');
-            type = cursed[Math.floor(Math.random()*cursed.length)];
-        } else {
-            const regular = pool.filter(k => ['attack','defend','heal','special'].includes(DICE_TYPES[k].category));
-            type = regular[Math.floor(Math.random()*regular.length)];
-        }
-        offer.push(type);
-    }
-    state.rewardOffer = offer;
-}
+function renderInventory(){
+  const box=$('#artifacts');
+  $('#slotInfo').textContent=`${S.artifacts.length} / ${slotCount()}`;
 
-function switchTab(tab, el) {
-    SFX.click();
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    if (el) el.classList.add('active');
-    const content = document.getElementById('rewardContent');
-    if (tab === 'add') renderAddTab(content);
-    else if (tab === 'remove') renderRemoveTab(content);
-}
-
-function renderAddTab(container) {
-    let html = '<p style="text-align:center; font-size:0.9em; margin:10px 0;">Оберіть новий кубик у колоду:</p><div class="reward-cards">';
-    state.rewardOffer.forEach((type, i) => {
-        const t = DICE_TYPES[type];
-        const catClass = t.category === 'legendary' ? 'legendary' : t.category === 'cursed' ? 'cursed' : '';
-        html += `<div class="card ${catClass}" onclick="chooseReward(${i})" id="rewardCard${i}">
-            <div class="icon">${t.icon}</div>
-            <div class="name">${t.name}</div>
-            <div class="desc">${t.desc}</div>
+  if(!S.artifacts.length){
+    box.innerHTML='<div class="inv-empty">Поки порожньо.<br>Зазирни в магазин після раунду.</div>';
+  }else{
+    box.innerHTML=S.artifacts.map(a=>{
+      const e = a.effect;
+      let bonusText = '';
+      
+      // Обчислення поточного бонусу для "ростучих" артефактів
+      if(e.red5Mult){
+        const val = (e.red5Mult * (S.red5Count||0)).toFixed(2);
+        bonusText = `<small style="color:var(--teal)"> зараз: +${val} mult</small>`;
+      }
+      else if(e.cascadeRunMult){
+        const val = (e.cascadeRunMult * (S.totalCascades||0)).toFixed(2);
+        bonusText = `<small style="color:var(--teal)">⚡ зараз: +${val} mult</small>`;
+      }
+      else if(e.matchRunMult){
+        const val = (e.matchRunMult * (S.totalMatches||0)).toFixed(2);
+        bonusText = `<small style="color:var(--teal)">⚡ зараз: +${val} mult</small>`;
+      }
+      else if(e.goldToChips){
+        const val = Math.floor((S.gold||0) / e.goldToChips);
+        bonusText = `<small style="color:var(--teal)"> зараз: +${val} chips/плитку</small>`;
+      }
+      else if(e.goldToMult){
+        const val = Math.floor((S.gold||0) / e.goldToMult);
+        bonusText = `<small style="color:var(--teal)">⚡ зараз: +${val} mult</small>`;
+      }
+      else if(e.cascadeChips && !e.cascade){
+        // golden_touch — chips за каскад
+        const val = e.cascadeChips * (S.totalCascades||0);
+        bonusText = `<small style="color:var(--teal)">⚡ зараз: +${val} chips/каскад</small>`;
+      }
+      
+      return `
+        <div class="inv-row">
+          <span class="ic">${a.icon}</span>
+          <div class="tx">
+            <b>${a.name}</b>
+            <small>${a.desc}</small>
+            ${bonusText}
+          </div>
+          <button class="sell" data-sell="${a.id}" title="Продати за ${Math.floor(a.price/2)} золота">×</button>
         </div>`;
-    });
-    html += '</div><button class="btn btn-roll" onclick="confirmAdd()" id="confirmAddBtn" disabled style="width:100%;">✅ Додати в колоду</button>';
-    container.innerHTML = html;
+    }).join('');
+  }
+
+  $('#itemInfo').textContent=`${S.items.length} / ${MAX_ITEMS}`;
+  const ib=$('#items');
+  if(!S.items.length){
+    ib.innerHTML='<div class="inv-empty" style="width:100%">Немає розхідників</div>';
+  }else{
+    ib.innerHTML=S.items.map(it=>`
+      <button class="item-btn ${aim===it.id?'active':''}" data-item="${it.id}" title="${it.desc}">
+        <span class="ic">${it.icon}</span><small>${it.name}</small>
+      </button>`).join('');
+  }
 }
 
-function chooseReward(i) {
-    SFX.click();
-    state.chosenReward = state.rewardOffer[i];
-    document.querySelectorAll('.reward-cards .card').forEach(c => c.classList.remove('chosen'));
-    document.getElementById('rewardCard'+i).classList.add('chosen');
-    document.getElementById('confirmAddBtn').disabled = false;
+function sellArtifact(id){
+  if(busy) return;
+  const i=S.artifacts.findIndex(a=>a.id===id);
+  if(i<0) return;
+  const a=S.artifacts[i];
+  const refund=Math.floor(a.price/2);
+  S.artifacts.splice(i,1);
+  S.gold+=refund;
+  sfx('buy');
+  toast(`Продано: +${refund} золота`);
+  updateHUD();
+  if($('#shopModal').classList.contains('show')) renderShop();
 }
 
-function confirmAdd() {
-    if (!state.chosenReward) return;
-    SFX.buy();
-    state.deck.push(state.chosenReward);
-    proceedAfterReward();
+function buyArtifact(offer){
+  if(busy) return;
+  if(S.artifacts.some(a=>a.id===offer.id)){toast('Цей артефакт уже в тебе');return;}
+  if(S.gold<offer.price){toast('Не вистачає золота');sfx('bad');return;}
+  if(S.artifacts.length>=slotCount()){
+    showReplace(offer);
+  }else{
+    S.gold-=offer.price;
+    S.artifacts.push(offer);
+    sfx('buy');
+    toast(`${offer.icon} ${offer.name} — твій`);
+    updateHUD(); renderShop();
+  }
 }
 
-function renderRemoveTab(container) {
-    let html = '<p style="text-align:center; font-size:0.9em; margin:10px 0;">Оберіть кубик для видалення з колоди:</p><div class="deck-grid">';
-    state.deck.forEach((type, i) => {
-        const t = DICE_TYPES[type];
-        const catClass = t.category === 'legendary' ? 'legendary' : t.category === 'cursed' ? 'cursed' : '';
-        html += `<div class="deck-card ${catClass}" onclick="chooseRemove(${i})" id="deckCard${i}">
-            <div class="dc-icon">${t.icon}</div>
-            <div>${t.name}</div>
+function showReplace(offer){
+  $('#replacePanel').innerHTML=`
+    <div class="eyebrow">Інвентар повен · ${slotCount()} слотів</div>
+    <h2>Що залишимо в минулому?</h2>
+    <p>Новий артефакт: <b>${offer.icon} ${offer.name}</b> — ${offer.desc}<br>Ціна: <b>${offer.price} золота</b>. Замість продажу старий можна одразу замінити.</p>
+    <div class="meta-list">
+      ${S.artifacts.map((a,i)=>`
+        <div class="meta-row">
+          <span class="ic">${a.icon}</span>
+          <div class="tx"><b>${a.name}</b><small>${a.desc}</small><small style="color:var(--gold)">Повернення при заміні: +${Math.floor(a.price/2)}</small></div>
+          <button class="btn" data-replace="${i}">Замінити</button>
+        </div>`).join('')}
+    </div>
+    <div class="btn-row"><button class="btn ghost" id="cancelReplace">Скасувати</button></div>`;
+  openModal('replaceModal');
+}
+
+$('#replacePanel').addEventListener('click',e=>{
+  const b=e.target.closest('[data-replace]');
+  if(!b){ if(e.target.id==='cancelReplace') closeModal('replaceModal'); return; }
+  const i=+b.dataset.replace;
+  const offer=S._pendingOffer;
+  if(!offer) return;
+  const old=S.artifacts[i];
+  S.artifacts.splice(i,1);
+  S.gold+=Math.floor(old.price/2);
+  S.gold-=offer.price;
+  S.artifacts.push(offer);
+  S._pendingOffer=null;
+  closeModal('replaceModal');
+  sfx('buy');
+  toast(`${old.icon} → ${offer.icon} ${offer.name}`);
+  updateHUD(); renderShop();
+});
+
+function openShop(){
+  S.rerolled=false;
+  rollOffers();
+  renderShop();
+  openModal('shopModal');
+}
+
+function rollOffers(){
+  S.offers=shuffleArr([...ARTIFACTS]).slice(0,4);
+  S.offersItems=shuffleArr([...ITEMS]).slice(0,3);
+}
+
+function renderShop(){
+  const r=S.lastReward;
+  $('#shopPanel').innerHTML=`
+    <div class="eyebrow">Раунд ${S.round} ${r?.isBoss?'· БОС ПРОЙДЕНО':'· пройдено'}</div>
+    <h2>Магазин алхіміка</h2>
+    <div class="reward-box">
+      <div>База<b>+${r.base}</b></div>
+      <div>${r.left} зайвих ходів<b>+${r.moveBonus}</b></div>
+      ${r.extra?`<div>Бонуси<b>+${r.extra}</b></div>`:''}
+      ${r.bossBonus?`<div>Нагорода боса<b>+${r.bossBonus}</b></div>`:''}
+      ${r.essence?`<div>🔮 Есенція<b>+${r.essence}</b></div>`:''}
+      <div>Разом<b>+${r.reward}</b></div>
+    </div>
+    <div class="shop-gold">У тебе: <b>${S.gold}</b> золота</div>
+    <h3>Артефакти <small>слотів ${S.artifacts.length}/${slotCount()}</small></h3>
+    <div class="shop-grid">
+      ${S.offers.map((a,i)=>{
+        const owned=S.artifacts.some(x=>x.id===a.id);
+        const poor=S.gold<a.price;
+        return `<button class="shop-item ${owned?'owned':''} ${poor?'poor':''}" data-offer="${i}">
+          <span class="ic">${a.icon}</span><span class="nm">${a.name}</span><span class="ds">${a.desc}</span><span class="pr">${a.price} золота</span>
+        </button>`;
+      }).join('')}
+    </div>
+    <h3>Розхідники <small>${S.items.length}/${MAX_ITEMS}</small></h3>
+    <div class="shop-grid">
+      ${S.offersItems.map((it,i)=>`
+        <button class="shop-item ${S.gold<it.price?'poor':''}" data-buyitem="${i}">
+          <span class="ic">${it.icon}</span><span class="nm">${it.name}</span><span class="ds">${it.desc}</span><span class="pr">${it.price} золота</span>
+        </button>`).join('')}
+    </div>
+    <div class="shop-foot">
+      <button class="btn ghost" id="rerollBtn" ${S.rerolled?'disabled':''}>🎲 ${S.rerolled?'Оновлено':'Оновити · 5'}</button>
+      <button class="btn primary" id="continueBtn">Раунд ${S.round+1} →</button>
+    </div>
+    <p style="margin-top:14px;font-size:10px">${r?.essence?'🔮 Есенцію можна витратити в Майстерні (кнопка 🔮 у шапці). ':''}Повний інвентар? Купівля запропонує замінити старий артефакт.</p>`;
+  $('#rerollBtn').onclick=()=>{
+    if(S.rerolled) return;
+    if(S.gold<5){toast('Потрібно 5 золота');return;}
+    S.gold-=5; S.rerolled=true; rollOffers(); updateHUD(); renderShop(); sfx('click');
+  };
+  $('#continueBtn').onclick=()=>{ closeModal('shopModal'); S.round++; startRound(); };
+}
+
+$('#shopPanel').addEventListener('click',e=>{
+  const o=e.target.closest('[data-offer]');
+  if(o){ S._pendingOffer=S.offers[+o.dataset.offer]; buyArtifact(S._pendingOffer); return; }
+  const b=e.target.closest('[data-buyitem]');
+  if(b){
+    const it=S.offersItems[+b.dataset.buyitem];
+    if(S.items.length>=MAX_ITEMS){toast('Розхідники зайняли всі слоти');return;}
+    if(S.gold<it.price){toast('Не вистачає золота');sfx('bad');return;}
+    S.gold-=it.price; S.items.push(it); sfx('buy'); toast(`${it.icon} ${it.name} у кишені`); updateHUD(); renderShop();
+  }
+});
+
+function openMeta(){ renderMeta(); openModal('metaModal'); }
+
+function renderMeta(){
+  $('#metaPanel').innerHTML=`
+    <div class="eyebrow">Залишається назавжди</div>
+    <h2>Майстерня</h2>
+    <div class="meta-balance"><b>🔮 ${meta.essence}</b><span>есенції<br>Отримується за перемогу над босом (кожен 5-й раунд).</span></div>
+    <p>Кожне покращення — маленьке. Але вони <b>не зникають між забігами</b> і працюють з самого першого раунду.</p>
+    <div class="meta-list">
+      ${META_UPGRADES.map(u=>{
+        const lvl=meta.up[u.id]||0;
+        const maxed=lvl>=u.max;
+        const cost=maxed?0:u.cost(lvl);
+        return `<div class="meta-row">
+          <span class="ic">${u.icon}</span>
+          <div class="tx"><b>${u.name}</b><small>${u.desc}</small><div class="pips">${Array.from({length:u.max},(_,i)=>`<i class="${i<lvl?'on':''}"></i>`).join('')}</div></div>
+          <button class="btn ${maxed?'':'primary'}" data-up="${u.id}" ${maxed||meta.essence<cost?'disabled':''}>${maxed?'MAX':`🔮 ${cost}`}</button>
         </div>`;
+      }).join('')}
+    </div>
+    <div class="meta-stats">
+      <div>Найкращий раунд<b>${meta.best}</b></div>
+      <div>Запусків<b>${meta.runs}</b></div>
+      <div>Босів подолано<b>${meta.bosses}</b></div>
+    </div>
+    <div class="btn-row"><button class="btn primary" id="metaClose">Повернутися →</button></div>`;
+  $('#metaClose').onclick=()=>closeModal('metaModal');
+}
+
+$('#metaPanel').addEventListener('click',e=>{
+  const b=e.target.closest('[data-up]');
+  if(!b) return;
+  if(busy){toast('Зачекай завершення ходу');return;}
+  const u=META_UPGRADES.find(x=>x.id===b.dataset.up);
+  const lvl=meta.up[u.id]||0;
+  if(lvl>=u.max) return;
+  const cost=u.cost(lvl);
+  if(meta.essence<cost) return;
+  meta.essence-=cost;
+  meta.up[u.id]=lvl+1;
+  saveMeta();
+  sfx('essence');
+  renderMeta();
+  updateHUD();
+  toast(`${u.icon} ${u.name} · рівень ${lvl+1}`);
+});
+
+function cellEl(x,y){ return $(`#grid .cell[data-x="${x}"][data-y="${y}"]`); }
+function cellByKey(k){ return cellEl(k%N,Math.floor(k/N)); }
+function cellRect(x,y){
+  const el=cellEl(x,y);
+  if(!el) return null;
+  const r=el.getBoundingClientRect();
+  return {x:r.left+r.width/2,y:r.top+r.height/2};
+}
+
+async function animateSwap(a,b){
+  const ea=cellEl(a.x,a.y), eb=cellEl(b.x,b.y);
+  if(!ea||!eb) return;
+  const ra=ea.getBoundingClientRect(), rb=eb.getBoundingClientRect();
+  const dx=rb.left-ra.left, dy=rb.top-ra.top;
+  ea.style.transition='transform .18s ease';
+  eb.style.transition='transform .18s ease';
+  ea.style.zIndex='6'; eb.style.zIndex='5';
+  ea.style.transform=`translate(${dx}px,${dy}px)`;
+  eb.style.transform=`translate(${-dx}px,${-dy}px)`;
+  await sleep(190);
+}
+
+function floatNumber(x,y,value,sub=''){
+  const el=document.createElement('div');
+  el.className='float-number';
+  el.style.left=x+'px'; el.style.top=y+'px';
+  el.innerHTML=`+${value}${sub?`<small>${sub}</small>`:''}`;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),1200);
+}
+
+function burst(el,color){
+  if(!el) return;
+  const r=el.getBoundingClientRect();
+  const palette={red:'#ff6b6b',blue:'#4dabf7',green:'#51cf66',yellow:'#ffd43b',purple:'#cc5de8',gold:'#ffc46b'};
+  const c=palette[color]||'#ffc46b';
+  for(let i=0;i<7;i++){
+    const p=document.createElement('div');
+    p.className='particle';
+    p.style.left=(r.left+r.width/2)+'px'; p.style.top=(r.top+r.height/2)+'px';
+    p.style.background=c;
+    const a=Math.random()*Math.PI*2, d=25+Math.random()*45;
+    p.style.setProperty('--dx',Math.cos(a)*d+'px');
+    p.style.setProperty('--dy',Math.sin(a)*d+'px');
+    document.body.appendChild(p);
+    setTimeout(()=>p.remove(),700);
+  }
+}
+
+let bannerTimer;
+function showBanner(text, chain=1){
+  const b = $('#banner');
+  
+  // Скидаємо стан ПОВНІСТЮ перед новою анімацією
+  b.classList.remove('show');
+  b.style.cssText = ''; // повний скид inline-стилів
+  void b.offsetWidth;   // примусовий reflow — це ключовий рядок!
+  
+  // Формуємо текст
+  b.textContent = chain > 1 ? `КАСКАД ×${chain}` : text;
+  
+  // Динамічний розмір
+  const fontSize = Math.min(44 + chain * 10, 110);
+  const scale = Math.min(1 + (chain - 1) * 0.25, 4);
+  
+  b.style.fontSize = fontSize + 'px';
+  b.style.transform = `translate(-50%, -50%) scale(${scale})`;
+  
+  // Колір залежно від сили каскаду
+  if(chain >= 5){
+    b.style.color = '#ff7a90';
+    b.style.textShadow = '0 0 60px #ff7a90, 0 0 120px #ffc46b, 0 0 180px #c084fc';
+    b.style.animation = 'bannerPop 1.2s ease-out, rainbow 1s linear infinite';
+  } else if(chain >= 3){
+    b.style.color = '#c084fc';
+    b.style.textShadow = '0 0 50px #c084fc, 0 0 100px #5eead4';
+    b.style.animation = 'bannerPop 1.1s ease-out, rainbow 2s linear infinite';
+  } else if(chain >= 2){
+    b.style.color = '#5eead4';
+    b.style.textShadow = '0 0 40px #5eead4, 0 0 80px #c084fc';
+    b.style.animation = 'bannerPop 1s ease-out';
+  } else {
+    b.style.color = '#ffc46b';
+    b.style.textShadow = '0 0 30px rgba(255,196,107,.6), 0 4px 12px #000';
+    b.style.animation = 'bannerPop 1s ease-out';
+  }
+  
+  // Запускаємо
+  b.classList.add('show');
+  
+  clearTimeout(bannerTimer);
+  bannerTimer = setTimeout(() => {
+    b.classList.remove('show');
+  }, chain >= 3 ? 1500 : 1000);
+}
+
+let toastTimer;
+function toast(text){
+  const t=$('#toast');
+  t.textContent=text;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),1800);
+}
+
+function openModal(id){ $('#'+id).classList.add('show'); }
+function closeModal(id){ $('#'+id).classList.remove('show'); }
+
+function updateHUD(){
+  $('#hRound').textContent=S.round;
+  $('#hMoves').textContent=S.moves;
+  $('#hScore').textContent=S.score;
+  $('#hGold').textContent=S.gold;
+  $('#hEssence').textContent=meta.essence;
+  $('#btnSound').textContent=meta.sound?'♪':'∅';
+  $('#roundLabel').textContent='РАУНД '+String(S.round).padStart(2,'0');
+  $('#sScore').textContent=S.score;
+  $('#sTarget').textContent=S.target;
+  const left=Math.max(0,S.target-S.score);
+  $('#sLeft').textContent=left?`лишилось ${left}`:'ціль досягнута!';
+  $('#barFill').style.width=Math.min(100,S.score/S.target*100)+'%';
+  $('#bar').classList.toggle('done',S.score>=S.target);
+  $('#goalTag').textContent=S.boss?'⚠ БОС':'Звичайний';
+  $('#goalTag').style.color=S.boss?'var(--red)':'var(--teal)';
+  const bossesCompleted = Math.floor((S.round - 1) / 5);
+  if(bossesCompleted > 0){
+    $('#goalTag').textContent += ` (×${Math.pow(DIFFICULTY.postBossMultiplier, bossesCompleted).toFixed(1)})`;
+  };
+  let bl='';
+  if(S.boss){
+    if(hasBoss('stone')) bl+='⚠ Камяний панцир<br>';
+    if(hasBoss('curse')) bl+=`⚠ Проклятий: ${COLOR_NAME[S.boss.cursed]}<br>`;
+    if(hasBoss('both')) bl+='⚠ Каміння + Прокляття<br>';
+    if(hasBoss('fog')) bl+='⚠ Туман: деякі плитки приховані<br>';
+    if(hasBoss('shuffle')) bl+='⚠ Міняйло: поле міняється щохід<br>';
+    if(hasBoss('freeze')) bl+='⚠ Мороз: кожен 3-й хід заморожує плитку<br>';
+    if(hasBoss('mirror')) bl+='⚠ Дзеркало: поле віддзеркалене<br>';
+    if(hasBoss('chain_tax')) bl+='⚠ Податок на каскади: каскади дають -30% очок';
+  }
+  $('#bossLabel').innerHTML=bl;
+  const h=S.lastHand;
+  if(h){
+    $('#rChips').textContent=h.chips;
+    $('#rMult').textContent=h.mult;
+    $('#rTotal').textContent=h.total;
+    $('#rSub').textContent=`${h.size} плиток · ${COLOR_NAME[h.color]} · хвиля ${h.chain}`;
+  }else{
+    $('#rChips').textContent='0';
+    $('#rMult').textContent='1';
+    $('#rTotal').textContent='0';
+    $('#rSub').textContent='Збери 3 в ряд — решта підтягнеться.';
+  }
+  renderInventory();
+}
+
+// МЕХАНІКИ БОСІВ
+function applyBossEffects(){
+  if(!S.boss) return;
+
+  if(hasBoss('freeze')){
+    const movesUsed = S.maxMoves - S.moves;
+    if(movesUsed > 0 && movesUsed % 3 === 0){
+      const tiles=[];
+      for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+        const t=S.grid[y][x];
+        if(t && !t.stone && !t.frozen) tiles.push({x,y});
+      }
+      if(tiles.length){
+        const p=rand(tiles);
+        S.grid[p.y][p.x].frozen=true;
+        toast('❄️ Плитку заморожено!');
+        tone(200,.2,'sine',.04,-50);
+        renderBoard();
+      }
+    }
+  }
+  
+  if(hasBoss('shuffle')){
+    const tiles=[];
+    for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+      const t=S.grid[y][x];
+      if(t && !t.stone && !t.frozen) tiles.push({x,y});
+    }
+    if(tiles.length>=2){
+      shuffleArr(tiles);
+      const a=tiles[0], b=tiles[1];
+      const temp=S.grid[a.y][a.x];
+      S.grid[a.y][a.x]=S.grid[b.y][b.x];
+      S.grid[b.y][b.x]=temp;
+      toast('🔄 Поле змінилось!');
+      tone(250,.15,'sine',.03,80);
+      renderBoard();
+    }
+  }
+  
+  if(hasBoss('fog')){
+    for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+      const t=S.grid[y][x];
+      if(t && !t.stone && !t.fog && Math.random() < 0.15){
+        t.fog = true;
+      }
+    }
+  }
+}
+
+let dragStart=null;
+function adjacent(a,b){ return Math.abs(a.x-b.x)+Math.abs(a.y-b.y)===1; }
+
+function handleCellClick(x,y){
+  if(busy||!S) return;
+  if(aim==='hammer'){ useHammer(x,y); return; }
+  const t=S.grid[y][x];
+  if(!t) return;
+  if(t.stone){toast('Каміння не можна рухати. Зроби збіг поруч.');return;}
+  if(t.frozen){toast('Плитку заморожено!');return;}
+  if(!selected){ selected={x,y}; sfx('click'); renderBoard(); return; }
+  if(selected.x===x&&selected.y===y){ selected=null; renderBoard(); return; }
+  if(adjacent(selected,{x,y})){
+    if(!canSwap(x,y)){
+      toast('Не можна міняти з цією плиткою');
+      selected=null;
+      renderBoard();
+      return;
+    }
+    const a=selected; 
+    selected=null;
+    trySwap(a, {x, y}); // ВИПРАВЛЕНО: тепер викликає глобальну функцію
+  }else{
+    if(!canSwap(x,y)){ toast('Не можна вибрати цю плитку'); return; }
+    selected={x,y}; sfx('click'); renderBoard();
+  }
+}
+
+$('#grid').addEventListener('pointerdown',e=>{
+  if(busy) return;
+  const el=e.target.closest('.cell');
+  if(!el||!$('#grid').contains(el)) return;
+  e.preventDefault();
+  keyboardMode=false;
+  $('#grid').focus({preventScroll:true});
+  dragStart={x:+el.dataset.x,y:+el.dataset.y};
+});
+
+window.addEventListener('pointerup',e=>{
+  if(!dragStart) return;
+  const start=dragStart; dragStart=null;
+  const under=document.elementFromPoint(e.clientX,e.clientY);
+  const el=under?.closest?.('.cell');
+  const inside=el&&$('#grid').contains(el);
+  if(inside){
+    const end={x:+el.dataset.x,y:+el.dataset.y};
+    if(end.x===start.x&&end.y===start.y){
+      handleCellClick(start.x,start.y);
+    }else if(adjacent(start,end)){
+      if(!canSwap(start.x,start.y)||!canSwap(end.x,end.y)){
+        toast('Не можна міняти з цією плиткою');
+        return;
+      }
+      selected=null;
+      trySwap(start,end);
+    }
+  }
+});
+window.addEventListener('pointercancel',()=>{dragStart=null;});
+
+$('#grid').addEventListener('keydown',e=>{
+  if(busy||!S) return;
+  const map={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};
+  if(map[e.key]){
+    e.preventDefault();
+    keyboardMode=true;
+    const [dx,dy]=map[e.key];
+    cursor.x=Math.max(0,Math.min(N-1,cursor.x+dx));
+    cursor.y=Math.max(0,Math.min(N-1,cursor.y+dy));
+    renderBoard();
+  }else if(e.key===' '||e.key==='Enter'){
+    e.preventDefault();
+    keyboardMode=true;
+    handleCellClick(cursor.x,cursor.y);
+  }else if(e.key==='Escape'){
+    selected=null; aim=null;
+    $('#stage').classList.remove('aiming');
+    renderBoard();
+  }
+});
+
+$('#items').addEventListener('click',e=>{
+  const b=e.target.closest('[data-item]');
+  if(!b||busy) return;
+  const id=b.dataset.item;
+  if(id==='shuffle'){
+    S.items.splice(S.items.findIndex(i=>i.id===id),1);
+    shuffleBoard(false);
+    updateHUD();
+  }else if(id==='hourglass'){
+    S.items.splice(S.items.findIndex(i=>i.id===id),1);
+    S.moves+=2;
+    sfx('buy');
+    toast('+2 ходи');
+    updateHUD();
+  }else if(id==='hammer'){
+    if(aim==='hammer'){
+      aim=null; $('#stage').classList.remove('aiming');
+    }else{
+      aim='hammer'; selected=null;
+      $('#stage').classList.add('aiming');
+      toast('Обери плитку, яку зруйнувати');
+    }
+    updateHUD();
+  }
+});
+
+$('#artifacts').addEventListener('click',e=>{
+  const b=e.target.closest('[data-sell]');
+  if(b) sellArtifact(b.dataset.sell);
+});
+
+// ПОДІЇ ТА СТАРТ
+$('#btnMeta').onclick=()=>openMeta();
+$('#btnHelp').onclick=()=>openModal('helpModal');
+$('#helpClose').onclick=()=>{ meta.tutorial=true; saveMeta(); closeModal('helpModal'); };
+$('#btnSound').onclick=()=>{
+  meta.sound=!meta.sound; saveMeta();
+  $('#btnSound').textContent=meta.sound?'♪':'∅';
+  if(meta.sound) sfx('click');
+};
+$('#btnRestart').onclick=()=>{
+  if(busy){toast('Зачекай завершення ходу');return;}
+  if(confirm('Почати новий забіг? Артефакти та золото цього забігу буде втрачено. 🔮 есенція залишиться.')){
+    newRun();
+  }
+};
+$('#helpModal').addEventListener('click',e=>{
+  if(e.target.id==='helpModal'){meta.tutorial=true;saveMeta();closeModal('helpModal');}
+});
+
+newRun();
+if(!meta.tutorial) openModal('helpModal');
+
+// === ТАБЛИЦЯ ЛІДЕРІВ ===
+const LB_KEY = 'kaskad-leaderboard-v1';
+function getNick(){
+  let nick = localStorage.getItem('kaskad_nick');
+  if(!nick){
+    nick = prompt('Введи свій нікнейм для таблиці лідерів:', 'Алхімік');
+    if(!nick) nick = 'Анонім';
+    localStorage.setItem('kaskad_nick', nick);
+  }
+  return nick;
+}
+
+function saveLeaderboard(score, round){
+  const lb = JSON.parse(localStorage.getItem(LB_KEY) || '[]');
+  lb.push({ nick: getNick(), score, round, date: new Date().toLocaleDateString() });
+  lb.sort((a,b) => b.score - a.score); // Сортування за спаданням очок
+  localStorage.setItem(LB_KEY, JSON.stringify(lb.slice(0, 10))); // Зберігаємо топ-10
+}
+
+function showLeaderboard(){
+  const lb = JSON.parse(localStorage.getItem(LB_KEY) || '[]');
+  let html = '<div class="eyebrow">Топ-10 алхіміків</div><h2>Таблиця лідерів</h2>';
+  if(lb.length === 0) html += '<p>Поки що нікого немає. Стань першим!</p>';
+  else {
+    html += '<div style="display:flex;flex-direction:column;gap:8px;margin-top:15px">';
+    lb.forEach((entry, i) => {
+      const isMe = entry.nick === getNick();
+      html += `<div style="display:flex;justify-content:space-between;padding:10px;background:${isMe?'rgba(94,234,212,0.1)':'rgba(255,255,255,0.03)'};border-radius:8px;border:1px solid var(--line)">
+        <span><b style="color:var(--gold)">#${i+1}</b> ${entry.nick} <small style="color:var(--muted)">(Раунд ${entry.round})</small></span>
+        <span style="color:var(--teal);font-weight:bold">${entry.score}</span>
+      </div>`;
     });
-    html += '</div><button class="btn btn-end" onclick="confirmRemove()" id="confirmRemoveBtn" disabled style="width:100%;">🗑️ Видалити</button>';
-    if (state.deck.length <= 1) {
-        html = '<p style="text-align:center; padding:20px;">⚠️ У колоді має бути хоча б 1 кубик!</p>';
-    }
-    container.innerHTML = html;
-}
-
-function chooseRemove(i) {
-    SFX.click();
-    state.chosenRemove = i;
-    document.querySelectorAll('.deck-card').forEach(c => c.classList.remove('chosen'));
-    document.getElementById('deckCard'+i).classList.add('chosen');
-    document.getElementById('confirmRemoveBtn').disabled = false;
-}
-
-function confirmRemove() {
-    if (state.chosenRemove === null) return;
-    SFX.click();
-    state.deck.splice(state.chosenRemove, 1);
-    proceedAfterReward();
-}
-
-function skipReward() {
-    SFX.click();
-    proceedAfterReward();
-}
-
-function proceedAfterReward() {
-    state.room++;
-    if ((state.room - 1) % 5 === 0 && state.room > 1) {
-        openShop();
-    } else {
-        startBattle();
-    }
-}
-
-// ==================== МАГАЗИН ====================
-function openShop() {
-    stopAmbient();
-    document.getElementById('shopGold').innerText = '💰 ' + state.gold;
-    const items = document.getElementById('shopItems');
-    items.innerHTML = '';
-    const pool = Object.keys(DICE_TYPES);
-    const eqPool = Object.keys(EQUIPMENT).filter(k => !state.equipment.includes(k));
-    const relicPool = Object.keys(RELICS).filter(k => !state.relics.includes(k));
-    const shopList = [];
-
-    for (let i = 0; i < 2; i++) {
-        let type;
-        const roll = Math.random();
-        if (roll < 0.15) {
-            const leg = pool.filter(k => DICE_TYPES[k].category === 'legendary');
-            type = leg[Math.floor(Math.random()*leg.length)];
-        } else if (roll < 0.3) {
-            const cursed = pool.filter(k => DICE_TYPES[k].category === 'cursed');
-            type = cursed[Math.floor(Math.random()*cursed.length)];
-        } else {
-            const reg = pool.filter(k => ['attack','defend','heal','special'].includes(DICE_TYPES[k].category));
-            type = reg[Math.floor(Math.random()*reg.length)];
-        }
-        const price = DICE_TYPES[type].category === 'legendary' ? 35 : DICE_TYPES[type].category === 'cursed' ? 10 : 15;
-        shopList.push({ kind: 'dice', id: type, price });
-    }
-
-    if (eqPool.length > 0 && Math.random() < 0.5) {
-        const eq = eqPool[Math.floor(Math.random()*eqPool.length)];
-        shopList.push({ kind: 'equip', id: eq, price: EQUIPMENT[eq].price });
-    } else if (relicPool.length > 0) {
-        const rel = relicPool[Math.floor(Math.random()*relicPool.length)];
-        shopList.push({ kind: 'relic', id: rel, price: RELICS[rel].price });
-    } else {
-        shopList.push({ kind: 'heal', id: 'fullHeal', price: 20 });
-    }
-
-    shopList.forEach((item) => {
-        const c = document.createElement('div');
-        c.className = 'card';
-        if (item.kind === 'dice') {
-            const t = DICE_TYPES[item.id];
-            if (t.category === 'legendary') c.classList.add('legendary');
-            if (t.category === 'cursed') c.classList.add('cursed');
-            c.innerHTML = `<div class="icon">${t.icon}</div><div class="name">${t.name}</div><div class="desc">${t.desc}</div><div class="price">💰 ${item.price}</div>`;
-        } else if (item.kind === 'equip') {
-            c.innerHTML = `<div class="icon">${EQUIPMENT[item.id].icon}</div><div class="name">${EQUIPMENT[item.id].name}</div><div class="desc">${EQUIPMENT[item.id].desc}</div><div class="price">💰 ${item.price}</div>`;
-        } else if (item.kind === 'relic') {
-            c.innerHTML = `<div class="icon">${RELICS[item.id].icon}</div><div class="name">${RELICS[item.id].name}</div><div class="desc">${RELICS[item.id].desc}</div><div class="price">💰 ${item.price}</div>`;
-        } else {
-            c.innerHTML = `<div class="icon">💖</div><div class="name">Повне лікування</div><div class="desc">Відновити все HP</div><div class="price">💰 ${item.price}</div>`;
-        }
-        c.onclick = () => buyItem(item, c);
-        items.appendChild(c);
-    });
-    showScreen('shopScreen');
-}
-
-function buyItem(item, el) {
-    if (state.gold < item.price) { log('Не вистачає золота!'); return; }
-    state.gold -= item.price;
-    document.getElementById('shopGold').innerText = '💰 ' + state.gold;
-    SFX.buy();
-    goldFX();
-    if (item.kind === 'dice') {
-        state.deck.push(item.id);
-    } else if (item.kind === 'equip') {
-        const emptySlot = state.equipment.indexOf(null);
-        if (emptySlot !== -1) {
-            state.equipment[emptySlot] = item.id;
-            if (item.id === 'amulet') { state.maxHp += 10; state.hp += 10; }
-        }
-    } else if (item.kind === 'relic') {
-        state.relics.push(item.id);
-        state.maxEnergy += 1;
-        state.energy += 1;
-    } else if (item.kind === 'heal') {
-        state.hp = state.maxHp;
-        healFX(state.maxHp);
-    }
-    el.style.opacity = '0.3';
-    el.style.pointerEvents = 'none';
-    el.innerHTML += '<div style="color:#4caf50; margin-top:5px;">✅ Куплено</div>';
-    updateUI();
-}
-
-function leaveShop() {
-    SFX.click();
-    startBattle();
-}
-
-// ==================== КІНЕЦЬ ====================
-function gameOver() {
-    SFX.defeat();
-    stopAmbient();
-    document.getElementById('gameOverTitle').innerText = '💀 Ви загинули!';
-    const totalDice = state.deck.length + state.hand.length + state.discard.length;
-    document.getElementById('gameOverStats').innerText = `Дійшли до кімнати ${state.room}\nЗібрано золота: ${state.gold}\nРозмір колоди: ${totalDice}`;
-    showScreen('gameOverScreen');
+    html += '</div>';
+  }
+  html += '<div class="btn-row"><button class="btn ghost" onclick="closeModal(\'lbModal\')">Закрити</button> <button class="btn" onclick="localStorage.removeItem(\'kaskad_nick\');location.reload()">Змінити нік</button></div>';
+  
+  // Створюємо модалку динамічно, якщо її немає
+  if(!$('#lbModal')){
+    const div = document.createElement('div');
+    div.id = 'lbModal';
+    div.className = 'modal';
+    div.innerHTML = `<div class="panel" id="lbPanel"></div>`;
+    document.body.appendChild(div);
+  }
+  $('#lbPanel').innerHTML = html;
+  openModal('lbModal');
 }
 </script>
 </body>
